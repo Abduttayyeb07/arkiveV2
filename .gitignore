@@ -1,0 +1,84 @@
+# ============================
+# Arkive — .gitignore
+# ============================
+
+# ----- Arkive specific -----
+.arkive_secret_key
+backend/arkive/data/
+backend/data/
+arkive.db
+arkive.db-journal
+chroma.sqlite3
+*.db
+*.db-journal
+
+# ----- OS -----
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ----- IDE / Editor -----
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ----- Node / Frontend -----
+node_modules/
+/build
+/.svelte-kit
+/package
+yarn.lock
+.npm
+.eslintcache
+.stylelintcache
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+*.tsbuildinfo
+*.tgz
+
+# ----- Python -----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+env/
+*.egg-info/
+*.egg
+dist/
+*.manifest
+*.spec
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ----- Environment -----
+.env
+.env.*
+!.env.example
+
+# ----- Pyodide -----
+static/pyodide/*
+!static/pyodide/pyodide-lock.json
+
+# ----- Claude Code -----
+CLAUDE.md
+
+# ----- Logs -----
+*.log
+logs/
+npm-debug.log*
+pip-log.txt
+
+# ----- Leftover / parked features -----
+_leftover/
+
+# ----- Temp build artifacts -----
+arkive-favicon-*.png
+arkive-96.png
+arkive-192.png
+arkive-512.png
