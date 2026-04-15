@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { marked } from 'marked';
 	import { toast } from 'svelte-sonner';
 	import fileSaver from 'file-saver';
@@ -25,7 +27,7 @@
 
 	import { onMount, getContext, onDestroy } from 'svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 	// Assuming $i18n.languages is an array of language codes
 	$: loadLocale($i18n.languages);
 
@@ -60,7 +62,7 @@
 	let selectedNote = null;
 	let showDeleteConfirm = false;
 
-	let notes = {};
+	let notes: Record<string, any> = {};
 
 	let items = null;
 	let total = null;

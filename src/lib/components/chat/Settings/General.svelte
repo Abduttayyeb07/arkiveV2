@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { toast } from 'svelte-sonner';
 	import { createEventDispatcher, onMount, getContext } from 'svelte';
 	import { getLanguages, changeLanguage } from '$lib/i18n';
@@ -6,7 +8,7 @@
 
 	import { config, models, settings, theme, user } from '$lib/stores';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	import AdvancedParams from './Advanced/AdvancedParams.svelte';
 	import Textarea from '$lib/components/common/Textarea.svelte';
@@ -39,7 +41,7 @@
 		}
 	};
 
-	let params = {
+	let params: Record<string, any> = {
 		// Advanced
 		stream_response: null,
 		stream_delta_chunk_size: null,

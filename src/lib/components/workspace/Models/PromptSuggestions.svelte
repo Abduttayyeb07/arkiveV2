@@ -1,10 +1,12 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { getContext } from 'svelte';
 	import { saveAs } from 'file-saver';
 	import { toast } from 'svelte-sonner';
 	import Plus from '$lib/components/icons/Plus.svelte';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	export let promptSuggestions = [];
 
@@ -39,7 +41,7 @@
 				accept=".json"
 				hidden
 				on:change={(e) => {
-					const files = e.target.files;
+					const files = (e.target as HTMLInputElement).files;
 					if (!files || files.length === 0) {
 						return;
 					}
@@ -49,7 +51,7 @@
 					let reader = new FileReader();
 					reader.onload = async (event) => {
 						try {
-							let suggestions = JSON.parse(event.target.result);
+							let suggestions = JSON.parse(event.target.result as string);
 
 							suggestions = suggestions.map((s) => {
 								if (typeof s.title === 'string') {
@@ -70,7 +72,7 @@
 
 					reader.readAsText(files[0]);
 
-					e.target.value = ''; // Reset the input value
+					(e.target as HTMLInputElement).value = ''; // Reset the input value
 				}}
 			/>
 

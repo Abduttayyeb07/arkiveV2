@@ -1,13 +1,12 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { toast } from 'svelte-sonner';
-	import { createEventDispatcher, onMount, getContext, tick } from 'svelte';
+	import { onMount, getContext } from 'svelte';
 	import { v4 as uuidv4 } from 'uuid';
-	import { getModels as _getModels } from '$lib/apis';
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
-	const dispatch = createEventDispatcher();
-	const i18n = getContext('i18n');
-
-	import { models, settings, user, terminalServers } from '$lib/stores';
+	import { terminalServers } from '$lib/stores';
 	import { getTerminalServers } from '$lib/apis/terminal';
 	import { ARKIVE_API_BASE_URL } from '$lib/constants';
 
@@ -18,7 +17,6 @@
 	import Cog6 from '$lib/components/icons/Cog6.svelte';
 	import Cloud from '$lib/components/icons/Cloud.svelte';
 	import Connection from '$lib/components/chat/Settings/Tools/Connection.svelte';
-	import SensitiveInput from '$lib/components/common/SensitiveInput.svelte';
 
 	import AddToolServerModal from '$lib/components/AddToolServerModal.svelte';
 	import AddTerminalServerModal from '$lib/components/AddTerminalServerModal.svelte';
@@ -31,7 +29,7 @@
 		setTerminalServerConnections
 	} from '$lib/apis/configs';
 
-	export let saveSettings: Function;
+	export let saveSettings: ((updated?: unknown) => void | Promise<void>) | undefined = undefined;
 
 	let servers = null;
 	let showConnectionModal = false;
@@ -51,12 +49,13 @@
 	const updateHandler = async () => {
 		const res = await setToolServerConnections(localStorage.token, {
 			TOOL_SERVER_CONNECTIONS: servers
-		}).catch((err) => {
+		}).catch(() => {
 			toast.error($i18n.t('Failed to save connections'));
 			return null;
 		});
 
 		if (res) {
+			await saveSettings?.();
 			toast.success($i18n.t('Connections saved successfully'));
 		}
 	};
@@ -64,12 +63,13 @@
 	const saveTerminalServers = async () => {
 		const res = await setTerminalServerConnections(localStorage.token, {
 			TERMINAL_SERVER_CONNECTIONS: terminalConnections
-		}).catch((err) => {
+		}).catch(() => {
 			toast.error($i18n.t('Failed to save terminal servers'));
 			return null;
 		});
 
 		if (res) {
+			await saveSettings?.();
 			toast.success($i18n.t('Terminal servers saved'));
 
 			// Refresh the terminalServers store so changes are reflected immediately

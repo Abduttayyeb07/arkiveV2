@@ -1,5 +1,12 @@
 export class AudioQueue {
-	constructor(audioElement) {
+	audio: any;
+	queue: string[];
+	current: string | null;
+	id: string | null;
+	onStopped: ((event: { event: string; id: string | null }) => void) | null;
+	_onEnded: () => void;
+
+	constructor(audioElement: any) {
 		this.audio = audioElement;
 		this.queue = [];
 		this.current = null;
@@ -8,7 +15,7 @@ export class AudioQueue {
 		this._onEnded = () => this.next();
 		this.audio.addEventListener('ended', this._onEnded);
 
-		this.onStopped = null; // optional callback
+		this.onStopped = null;
 	}
 
 	setId(newId) {

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { getContext, createEventDispatcher, onMount, tick } from 'svelte';
 
 	import Spinner from '$lib/components/common/Spinner.svelte';
@@ -13,7 +15,7 @@
 	import Textarea from '$lib/components/common/Textarea.svelte';
 	import Knowledge from '$lib/components/workspace/Models/Knowledge.svelte';
 	import { getFolderById } from '$lib/apis/folders';
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	export let show = false;
 	export let onSubmit: Function = (e) => {};
@@ -157,7 +159,7 @@
 						hidden
 						accept="image/*"
 						on:change={(e) => {
-							const inputFiles = e.target.files;
+							const inputFiles = (e.target as HTMLInputElement).files;
 
 							let reader = new FileReader();
 							reader.onload = (event) => {
@@ -177,7 +179,7 @@
 								console.log(`Unsupported File Type '${inputFiles[0]['type']}'.`);
 
 								// clear the input
-								e.target.value = '';
+								(e.target as HTMLInputElement).value = '';
 							}
 						}}
 					/>

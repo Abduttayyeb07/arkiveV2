@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { onMount, tick, getContext } from 'svelte';
 
 	import Textarea from '$lib/components/common/Textarea.svelte';
@@ -35,7 +37,7 @@
 	export let clone = false;
 	export let disabled = false;
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	let loading = false;
 	let showEditModal = false;
@@ -321,7 +323,7 @@
 						className="text-sm w-full bg-transparent outline-hidden overflow-y-hidden resize-none"
 						placeholder={$i18n.t('Write a summary in 50 words that summarizes {{topic}}.')}
 						bind:value={content}
-						aria-label={$i18n.t('Prompt Content')}
+						ariaLabel={$i18n.t('Prompt Content')}
 						rows={6}
 						required
 					/>
@@ -655,7 +657,7 @@
 										src={`/api/v1/users/${entry.user.id}/profile/image`}
 										alt={entry.user.name}
 										class="size-3 rounded-full mr-0.5"
-										on:error={(e) => (e.target.src = '/user.png')}
+										on:error={(e) => ((e.target as HTMLImageElement).src = '/user.png')}
 									/>
 									<span class="truncate">{entry.user.name}</span>
 									<span>•</span>

@@ -1,4 +1,6 @@
 <script context="module">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	let savedPyodidePath = '/mnt/uploads';
 </script>
 
@@ -16,7 +18,7 @@
 	import Folder from '../icons/Folder.svelte';
 	import Document from '../icons/Document.svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	export let overlay = false;
 

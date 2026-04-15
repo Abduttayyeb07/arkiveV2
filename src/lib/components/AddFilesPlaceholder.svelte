@@ -1,9 +1,11 @@
-<script>
+<script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { getContext } from 'svelte';
 
 	export let title = '';
 	export let content = '';
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 </script>
 
 <div class="px-3">

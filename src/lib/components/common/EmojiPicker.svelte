@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import VirtualList from '@sveltejs/svelte-virtual-list';
 
 	import { getContext } from 'svelte';
@@ -11,7 +13,7 @@
 	import emojiGroups from '$lib/emoji-groups.json';
 	import emojiShortCodes from '$lib/emoji-shortcodes.json';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	export let onClose = () => {};
 	export let onSubmit = (name) => {};
@@ -21,7 +23,10 @@
 	export let selected = null;
 
 	let show = false;
-	let emojis = emojiShortCodes;
+	const emojiGroupMap = emojiGroups as Record<string, string[]>;
+	const emojiShortCodeMap = emojiShortCodes as Record<string, string | string[]>;
+
+	let emojis: Record<string, string | string[]> = emojiShortCodeMap;
 	let search = '';
 	let flattenedEmojis = [];
 	let emojiRows = [];
@@ -29,34 +34,37 @@
 	// Reactive statement to filter the emojis based on search query
 	$: {
 		if (search) {
-			emojis = Object.keys(emojiShortCodes).reduce((acc, key) => {
-				if (key.includes(search.toLowerCase())) {
-					acc[key] = emojiShortCodes[key];
-				} else {
-					if (Array.isArray(emojiShortCodes[key])) {
-						const filtered = emojiShortCodes[key].filter((emoji) =>
-							emoji.includes(search.toLowerCase())
-						);
-						if (filtered.length) {
-							acc[key] = filtered;
-						}
+			emojis = Object.keys(emojiShortCodeMap).reduce<Record<string, string | string[]>>(
+				(acc, key) => {
+					if (key.includes(search.toLowerCase())) {
+						acc[key] = emojiShortCodeMap[key];
 					} else {
-						if (emojiShortCodes[key].includes(search.toLowerCase())) {
-							acc[key] = emojiShortCodes[key];
+						if (Array.isArray(emojiShortCodeMap[key])) {
+							const filtered = emojiShortCodeMap[key].filter((emoji) =>
+								emoji.includes(search.toLowerCase())
+							);
+							if (filtered.length) {
+								acc[key] = filtered;
+							}
+						} else {
+							if (emojiShortCodeMap[key].includes(search.toLowerCase())) {
+								acc[key] = emojiShortCodeMap[key];
+							}
 						}
 					}
-				}
-				return acc;
-			}, {});
+					return acc;
+				},
+				{}
+			);
 		} else {
-			emojis = emojiShortCodes;
+			emojis = emojiShortCodeMap;
 		}
 	}
 	// Flatten emoji groups and group them into rows of 8 for virtual scrolling
 	$: {
 		flattenedEmojis = [];
-		Object.keys(emojiGroups).forEach((group) => {
-			const groupEmojis = emojiGroups[group].filter((emoji) => emojis[emoji]);
+		Object.keys(emojiGroupMap).forEach((group) => {
+			const groupEmojis = emojiGroupMap[group].filter((emoji) => emojis[emoji]);
 			if (groupEmojis.length > 0) {
 				flattenedEmojis.push({ type: 'group', label: group });
 				flattenedEmojis.push(
@@ -64,9 +72,9 @@
 						type: 'emoji',
 						name: emoji,
 						shortCodes:
-							typeof emojiShortCodes[emoji] === 'string'
-								? [emojiShortCodes[emoji]]
-								: emojiShortCodes[emoji]
+							typeof emojiShortCodeMap[emoji] === 'string'
+								? [emojiShortCodeMap[emoji]]
+								: emojiShortCodeMap[emoji]
 					}))
 				);
 			}

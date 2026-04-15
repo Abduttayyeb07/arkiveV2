@@ -1,5 +1,11 @@
 <script lang="ts" context="module">
+	import type { ComponentType } from 'svelte';
 	import { marked, type Token } from 'marked';
+	import ArrowRightCircle from '$lib/components/icons/ArrowRightCircle.svelte';
+	import Bolt from '$lib/components/icons/Bolt.svelte';
+	import Info from '$lib/components/icons/Info.svelte';
+	import LightBulb from '$lib/components/icons/LightBulb.svelte';
+	import Star from '$lib/components/icons/Star.svelte';
 
 	type AlertType = 'NOTE' | 'TIP' | 'IMPORTANT' | 'WARNING' | 'CAUTION';
 
@@ -46,11 +52,12 @@
 	export function alertComponent(token: Token): AlertData | false {
 		const regExpStr = `^(?:\\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\\])\\s*?\n*`;
 		const regExp = new RegExp(regExpStr);
-		const matches = token.text?.match(regExp);
+		const tokenText = 'text' in token && typeof token.text === 'string' ? token.text : '';
+		const matches = tokenText.match(regExp);
 
 		if (matches && matches.length) {
 			const alertType = matches[1] as AlertType;
-			const newText = token.text.replace(regExp, '');
+			const newText = tokenText.replace(regExp, '');
 			const newTokens = marked.lexer(newText);
 			return {
 				type: alertType,
@@ -63,20 +70,23 @@
 </script>
 
 <script lang="ts">
-	import Info from '$lib/components/icons/Info.svelte';
-	import Star from '$lib/components/icons/Star.svelte';
-	import LightBulb from '$lib/components/icons/LightBulb.svelte';
-	import Bolt from '$lib/components/icons/Bolt.svelte';
-	import ArrowRightCircle from '$lib/components/icons/ArrowRightCircle.svelte';
 	import MarkdownTokens from './MarkdownTokens.svelte';
-	import type { ComponentType } from 'svelte';
 
-	export let token: Token;
+	type TaskClickPayload = {
+		id: string;
+		token: import('marked').Token;
+		tokenIdx: number;
+		item: unknown;
+		itemIdx: number;
+		checked: boolean;
+	};
+
+	export let token: import('marked').Token;
 	export let alert: AlertData;
 	export let id = '';
 	export let tokenIdx = 0;
-	export let onTaskClick: ((event: MouseEvent) => void) | undefined = undefined;
-	export let onSourceClick: ((event: MouseEvent) => void) | undefined = undefined;
+	export let onTaskClick: (payload: TaskClickPayload) => void = () => {};
+	export let onSourceClick: (event?: MouseEvent) => void = () => {};
 </script>
 
 <!--

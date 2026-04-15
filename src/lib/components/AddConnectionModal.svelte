@@ -1,7 +1,9 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { toast } from 'svelte-sonner';
 	import { getContext, onMount } from 'svelte';
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	import { settings } from '$lib/stores';
 	import { verifyOpenAIConnection } from '$lib/apis/openai';
@@ -317,13 +319,13 @@
 
 									{#if !ollama}
 										<datalist id="suggestions">
-											<option value="https://api.openai.com/v1" />
-											<option value="https://api.anthropic.com/v1" />
-											<option value="https://generativelanguage.googleapis.com/v1beta/openai" />
-											<option value="https://api.mistral.ai/v1" />
-											<option value="https://api.groq.com/openai/v1" />
-											<option value="https://openrouter.ai/api/v1" />
-											<option value="https://api.x.ai/v1" />
+											<option value="https://api.openai.com/v1"></option>
+											<option value="https://api.anthropic.com/v1"></option>
+											<option value="https://generativelanguage.googleapis.com/v1beta/openai"></option>
+											<option value="https://api.mistral.ai/v1"></option>
+											<option value="https://api.groq.com/openai/v1"></option>
+											<option value="https://openrouter.ai/api/v1"></option>
+											<option value="https://api.x.ai/v1"></option>
 										</datalist>
 									{/if}
 								</div>

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import Modal from '$lib/components/common/Modal.svelte';
 	import { getContext } from 'svelte';
 	import { getModelChats, getModelOverview } from '$lib/apis/analytics';
@@ -14,7 +16,7 @@
 	export let endDate: number | null = null;
 	export let onClose: () => void = () => {};
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	type Tab = 'overview' | 'chats';
 	let selectedTab: Tab = 'overview';

@@ -1,4 +1,6 @@
 <script context="module" lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	let savedTab: 'controls' | 'files' | 'overview' = 'controls';
 </script>
 
@@ -35,7 +37,7 @@
 	import PyodideFileNav from './PyodideFileNav.svelte';
 	import Overview from './Overview.svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	export let history;
 	export let models = [];
@@ -43,7 +45,7 @@
 	export let chatId = null;
 
 	export let chatFiles = [];
-	export let params = {};
+	export let params: Record<string, any> = {};
 
 	export let eventTarget: EventTarget;
 	export let submitPrompt: Function;

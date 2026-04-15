@@ -1,10 +1,12 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { toast } from 'svelte-sonner';
 	import { createEventDispatcher, onMount, getContext, tick } from 'svelte';
 	import { getModels as _getModels } from '$lib/apis';
 
 	const dispatch = createEventDispatcher();
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	import { models, settings, user } from '$lib/stores';
 
@@ -115,7 +117,7 @@
 											(key, keyIdx) => idx !== keyIdx
 										);
 
-										let newConfig = {};
+										let newConfig: Record<string, any> = {};
 										config.OPENAI_API_BASE_URLS.forEach((url, newIdx) => {
 											newConfig[newIdx] =
 												config.OPENAI_API_CONFIGS[newIdx < idx ? newIdx : newIdx + 1];

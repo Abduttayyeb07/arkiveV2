@@ -1,28 +1,25 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { toast } from 'svelte-sonner';
 	import { onMount, getContext } from 'svelte';
 
 	import { user, config, settings } from '$lib/stores';
 	import { updateUserProfile, createAPIKey, getAPIKey, getSessionUser } from '$lib/apis/auths';
-	import { ARKIVE_BASE_URL } from '$lib/constants';
 
 	import UpdatePassword from './Account/UpdatePassword.svelte';
-	import { getGravatarUrl } from '$lib/apis/utils';
-	import { generateInitialsImage, canvasPixelTest } from '$lib/utils';
+	import { generateInitialsImage } from '$lib/utils';
 	import { copyToClipboard } from '$lib/utils';
 	import Plus from '$lib/components/icons/Plus.svelte';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import SensitiveInput from '$lib/components/common/SensitiveInput.svelte';
 	import Textarea from '$lib/components/common/Textarea.svelte';
-	import User from '$lib/components/icons/User.svelte';
 	import UserProfileImage from './Account/UserProfileImage.svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	export let saveHandler: Function;
 	export let saveSettings: Function;
-
-	let loaded = false;
 
 	let profileImageUrl = '';
 	let name = '';
@@ -38,8 +35,12 @@
 	let JWTTokenCopied = false;
 
 	let APIKey = '';
+	let APIKeyScope = 'full_access';
+	let APIKeyExpiresAt: number | null = null;
 	let APIKeyCopied = false;
-	let profileImageInputElement: HTMLInputElement;
+
+	let newKeyScope = 'full_access';
+	let newKeyExpiresInDays: number | null = null;
 
 	const submitHandler = async () => {
 		if (name !== $user?.name) {
@@ -74,15 +75,18 @@
 				return null;
 			});
 
-			await user.set(sessionUser);
+			user.set(sessionUser);
 			return true;
 		}
 		return false;
 	};
 
 	const createAPIKeyHandler = async () => {
-		APIKey = await createAPIKey(localStorage.token);
-		if (APIKey) {
+		const res = await createAPIKey(localStorage.token, newKeyScope, newKeyExpiresInDays);
+		if (res?.api_key) {
+			APIKey = res.api_key;
+			APIKeyScope = res.data?.scope ?? 'full_access';
+			APIKeyExpiresAt = res.expires_at ?? null;
 			toast.success($i18n.t('API Key created.'));
 		} else {
 			toast.error($i18n.t('Failed to create API Key.'));
@@ -114,13 +118,17 @@
 			($config?.features?.enable_api_keys ?? true) &&
 			(user?.role === 'admin' || (user?.permissions?.features?.api_keys ?? false))
 		) {
-			APIKey = await getAPIKey(localStorage.token).catch((error) => {
+			const keyRecord = await getAPIKey(localStorage.token).catch((error) => {
 				console.log(error);
-				return '';
+				return null;
 			});
+			if (keyRecord?.api_key) {
+				APIKey = keyRecord.api_key;
+				APIKeyScope = keyRecord.data?.scope ?? 'full_access';
+				APIKeyExpiresAt = keyRecord.expires_at ?? null;
+			}
 		}
 
-		loaded = true;
 	});
 </script>
 
@@ -179,7 +187,7 @@
 									class="w-full text-sm dark:text-gray-300 bg-transparent outline-hidden"
 									bind:value={_gender}
 									aria-label={$i18n.t('Gender')}
-									on:change={(e) => {
+									on:change={() => {
 										console.log(_gender);
 
 										if (_gender === 'custom') {
@@ -332,8 +340,8 @@
 									<div class="self-center text-xs font-medium mb-1">{$i18n.t('API Key')}</div>
 								</div>
 							{/if}
-							<div class="flex">
-								{#if APIKey}
+							{#if APIKey}
+								<div class="flex">
 									<SensitiveInput value={APIKey} readOnly={true} />
 
 									<button
@@ -381,10 +389,10 @@
 										{/if}
 									</button>
 
-									<Tooltip content={$i18n.t('Create new key')}>
+									<Tooltip content={$i18n.t('Regenerate key')}>
 										<button
-											class=" px-1.5 py-1 dark:hover:bg-gray-850transition rounded-lg"
-											aria-label={$i18n.t('Create new key')}
+											class="px-1.5 py-1 dark:hover:bg-gray-850 transition rounded-lg"
+											aria-label={$i18n.t('Regenerate key')}
 											on:click={() => {
 												createAPIKeyHandler();
 											}}
@@ -405,19 +413,71 @@
 											</svg>
 										</button>
 									</Tooltip>
-								{:else}
+								</div>
+
+								<div class="flex items-center gap-2 mt-1.5">
+									<span
+										class="text-xs px-1.5 py-0.5 rounded-md font-medium
+											{APIKeyScope === 'full_access'
+											? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+											: APIKeyScope === 'read_only'
+												? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+												: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'}"
+									>
+										{APIKeyScope === 'full_access'
+											? $i18n.t('Full Access')
+											: APIKeyScope === 'read_only'
+												? $i18n.t('Read Only')
+												: $i18n.t('Chat Only')}
+									</span>
+
+									{#if APIKeyExpiresAt}
+										<span class="text-xs text-gray-400">
+											{$i18n.t('Expires')}
+											{new Date(APIKeyExpiresAt * 1000).toLocaleDateString()}
+										</span>
+									{:else}
+										<span class="text-xs text-gray-400">{$i18n.t('No expiry')}</span>
+									{/if}
+								</div>
+							{:else}
+								<div class="flex flex-col gap-2">
+									<div class="flex gap-2">
+										<div class="flex flex-col gap-0.5 flex-1">
+											<div class="text-xs text-gray-500">{$i18n.t('Scope')}</div>
+											<select
+												class="w-full text-xs dark:text-gray-300 bg-gray-100/70 dark:bg-gray-850 rounded-lg px-2 py-1.5 outline-hidden"
+												bind:value={newKeyScope}
+											>
+												<option value="full_access">{$i18n.t('Full Access')}</option>
+												<option value="read_only">{$i18n.t('Read Only')}</option>
+												<option value="chat_only">{$i18n.t('Chat Only')}</option>
+											</select>
+										</div>
+
+										<div class="flex flex-col gap-0.5 flex-1">
+											<div class="text-xs text-gray-500">{$i18n.t('Expires in (days)')}</div>
+											<input
+												class="w-full text-xs dark:text-gray-300 bg-gray-100/70 dark:bg-gray-850 rounded-lg px-2 py-1.5 outline-hidden"
+												type="number"
+												min="1"
+												placeholder={$i18n.t('Never')}
+												bind:value={newKeyExpiresInDays}
+											/>
+										</div>
+									</div>
+
 									<button
-										class="flex gap-1.5 items-center font-medium px-3.5 py-1.5 rounded-lg bg-gray-100/70 hover:bg-gray-100 dark:bg-gray-850 dark:hover:bg-gray-850 transition"
+										class="flex gap-1.5 items-center font-medium px-3.5 py-1.5 rounded-lg bg-gray-100/70 hover:bg-gray-100 dark:bg-gray-850 dark:hover:bg-gray-800 transition w-fit"
 										on:click={() => {
 											createAPIKeyHandler();
 										}}
 									>
-										<Plus strokeWidth="2" className=" size-3.5" />
-
-										{$i18n.t('Create new secret key')}</button
-									>
-								{/if}
-							</div>
+										<Plus strokeWidth="2" className="size-3.5" />
+										{$i18n.t('Create new secret key')}
+									</button>
+								</div>
+							{/if}
 						</div>
 					{/if}
 				</div>

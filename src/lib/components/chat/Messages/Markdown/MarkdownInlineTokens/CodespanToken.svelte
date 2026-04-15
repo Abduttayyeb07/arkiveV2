@@ -1,11 +1,13 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { copyToClipboard, unescapeHtml } from '$lib/utils';
 	import { toast } from 'svelte-sonner';
 	import { fade } from 'svelte/transition';
 
 	import { getContext } from 'svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	export let token;
 	export let done = true;

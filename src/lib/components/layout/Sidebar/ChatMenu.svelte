@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { getContext, tick } from 'svelte';
 
 	import fileSaver from 'file-saver';
@@ -27,7 +29,7 @@
 	import Folder from '$lib/components/icons/Folder.svelte';
 	import Messages from '$lib/components/chat/Messages.svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	export let shareHandler: Function;
 	export let moveChatHandler: Function;
@@ -103,7 +105,7 @@
 					const virtualWidth = 800; // px, fixed width for cloned element
 
 					// Clone and style
-					const clonedElement = containerElement.cloneNode(true);
+					const clonedElement = containerElement.cloneNode(true) as HTMLElement;
 					clonedElement.classList.add('text-black');
 					clonedElement.classList.add('dark:text-white');
 					clonedElement.style.width = `${virtualWidth}px`;
@@ -267,11 +269,8 @@
 				user={$user}
 				readOnly={true}
 				history={chat.chat.history}
-				messages={chat.chat.messages}
 				autoScroll={true}
 				sendMessage={() => {}}
-				continueResponse={() => {}}
-				regenerateResponse={() => {}}
 				messagesCount={null}
 				editCodeBlock={false}
 			/>

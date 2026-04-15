@@ -1,9 +1,11 @@
-<script>
+<script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
 
 	import { onMount, getContext } from 'svelte';
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	import { page } from '$app/stores';
 	import { config, models, settings } from '$lib/stores';
@@ -18,7 +20,7 @@
 	onMount(async () => {
 		const _id = $page.url.searchParams.get('id');
 		if (_id) {
-			model = await getModelById(localStorage.token, _id).catch((e) => {
+			model = await getModelById(localStorage.token, _id).catch(() => {
 				return null;
 			});
 

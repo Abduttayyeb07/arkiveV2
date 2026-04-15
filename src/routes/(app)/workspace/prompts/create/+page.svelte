@@ -1,9 +1,11 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
-	import { onMount, tick, getContext } from 'svelte';
+	import { onMount, getContext } from 'svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	import { createNewPrompt } from '$lib/apis/prompts';
 	import PromptEditor from '$lib/components/workspace/Prompts/PromptEditor.svelte';
@@ -13,10 +15,12 @@
 		command: string;
 		content: string;
 		tags: string[];
-		access_grants: any[];
+		access_grants: unknown[];
 	} | null = null;
 
 	let clone = false;
+
+	const allowedOrigins = ['https://github.com/Abduttayyeb07/ArkiveV2IA', 'http://localhost:9999'];
 
 	const onSubmit = async (_prompt) => {
 		const res = await createNewPrompt(localStorage.token, _prompt).catch((error) => {
@@ -31,14 +35,9 @@
 	};
 
 	onMount(async () => {
-		window.addEventListener('message', async (event) => {
+		const handleMessage = (event: MessageEvent<string>) => {
 			console.log(event);
-			if (
-				!['https://github.com/Abduttayyeb07/ArkiveV2IA', 'https://github.com/Abduttayyeb07/ArkiveV2IA', 'http://localhost:9999'].includes(
-					event.origin
-				)
-			)
-				return;
+			if (!allowedOrigins.includes(event.origin)) return;
 			const _prompt = JSON.parse(event.data);
 			console.log('Received prompt via window message:', _prompt);
 
@@ -50,7 +49,8 @@
 				tags: _prompt.tags || [],
 				access_grants: _prompt.access_grants !== undefined ? _prompt.access_grants : []
 			};
-		});
+		};
+		window.addEventListener('message', handleMessage);
 
 		if (window.opener ?? false) {
 			window.opener.postMessage('loaded', '*');
@@ -71,6 +71,10 @@
 				access_grants: _prompt.access_grants !== undefined ? _prompt.access_grants : []
 			};
 		}
+
+		return () => {
+			window.removeEventListener('message', handleMessage);
+		};
 	});
 </script>
 

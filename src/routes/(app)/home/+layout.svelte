@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { onMount, getContext } from 'svelte';
-	import { ARKIVE_NAME, showSidebar, functions, mobile } from '$lib/stores';
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
+	import { getContext } from 'svelte';
+	import { ARKIVE_NAME, showSidebar, mobile } from '$lib/stores';
 	import { page } from '$app/stores';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import Sidebar from '$lib/components/icons/Sidebar.svelte';
 
-	const i18n = getContext('i18n');
-
-	onMount(async () => {});
+	const i18n = getContext<Writable<i18nType>>('i18n');
 </script>
 
 <svelte:head>
@@ -48,12 +48,6 @@
 				<div
 					class="flex gap-1 scrollbar-none overflow-x-auto w-fit text-center text-sm font-medium rounded-full bg-transparent pt-1"
 				>
-					<a
-						class="min-w-fit p-1.5 {$page.url.pathname.includes('/home/notes')
-							? ''
-							: 'text-gray-300 dark:text-gray-600 hover:text-gray-700 dark:hover:text-white'} transition"
-						href="/playground/notes">{$i18n.t('Notes')}</a
-					>
 
 					<a
 						class="min-w-fit p-1.5 {$page.url.pathname.includes('/playground/calendar')

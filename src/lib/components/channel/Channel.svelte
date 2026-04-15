@@ -42,7 +42,7 @@
 	let threadId = null;
 
 	let typingUsers = [];
-	let typingUsersTimeout = {};
+	let typingUsersTimeout: Record<string, any> = {};
 
 	$: if (id) {
 		initHandler();

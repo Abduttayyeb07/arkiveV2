@@ -1,8 +1,10 @@
-<script>
+<script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { toast } from 'svelte-sonner';
 	import { getContext, onMount, tick } from 'svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	import { goto } from '$app/navigation';
 	import { user } from '$lib/stores';
@@ -25,7 +27,7 @@
 	export let edit = false;
 	export let clone = false;
 
-	export let onSave = () => {};
+	export let onSave: (value: any) => void = () => {};
 
 	export let id = '';
 	export let name = '';

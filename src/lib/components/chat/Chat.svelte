@@ -1,17 +1,17 @@
 <script lang="ts">
+	import type { i18n as i18nType } from 'i18next';
 	import { v4 as uuidv4 } from 'uuid';
 	import { toast } from 'svelte-sonner';
 	import { PaneGroup, Pane, PaneResizer } from 'paneforge';
 
 	import { getContext, onDestroy, onMount, tick } from 'svelte';
 	import { fade } from 'svelte/transition';
-	const i18n: Writable<i18nType> = getContext('i18n');
+	import { get, type Unsubscriber, type Writable } from 'svelte/store';
+
+	const i18n: Writable<i18nType> = getContext<Writable<i18nType>>('i18n');
 
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
-
-	import { get, type Unsubscriber, type Writable } from 'svelte/store';
-	import type { i18n as i18nType } from 'i18next';
 	import { ARKIVE_BASE_URL } from '$lib/constants';
 
 	import {
@@ -133,7 +133,7 @@
 	let eventConfirmationInputType = '';
 	let eventCallback = null;
 
-	let selectedModels = [''];
+	let selectedModels: string[] = [''];
 	let atSelectedModel: Model | undefined;
 	let selectedModelIds = [];
 	$: if (atSelectedModel !== undefined) {
@@ -170,7 +170,7 @@
 	let prompt = '';
 	let chatFiles = [];
 	let files = [];
-	let params = {};
+	let params: Record<string, any> = {};
 
 	$: if (chatIdProp) {
 		navigateHandler();
@@ -785,7 +785,7 @@
 			name: fileData.name,
 			url: fileData.url,
 			headers: {
-				Authorization: `Bearer ${token}`
+				Authorization: `Bearer ${localStorage.token}`
 			}
 		});
 
@@ -945,7 +945,7 @@
 
 				files = [...files];
 			} catch (e) {
-				files = files.filter((f) => f.name !== url);
+				files = files.filter((f) => f.name !== fileItem.name);
 				toast.error(`${e}`);
 			}
 		}
@@ -1069,7 +1069,9 @@
 						modelSelectorButton.click();
 						await tick();
 
-						const modelSelectorInput = document.getElementById('model-search-input');
+						const modelSelectorInput = document.getElementById(
+							'model-search-input'
+						) as HTMLInputElement | null;
 						if (modelSelectorInput) {
 							modelSelectorInput.focus();
 							modelSelectorInput.value = urlModels[0];
@@ -1139,7 +1141,7 @@
 		await showArtifacts.set(false);
 
 		if ($page.url.pathname.includes('/c/')) {
-			window.history.replaceState(history.state, '', `/`);
+			window.history.replaceState(window.history.state, '', `/`);
 		}
 
 		autoScroll = true;
@@ -1272,7 +1274,7 @@
 				await tick();
 
 				if (history.currentId) {
-					for (const message of Object.values(history.messages)) {
+					for (const message of Object.values(history.messages) as any[]) {
 						if (message && message.role === 'assistant' && message.done !== false) {
 							message.done = true;
 						}
@@ -1296,7 +1298,7 @@
 		}
 	};
 
-	const scrollToBottom = async (behavior = 'auto') => {
+	const scrollToBottom = async (behavior: ScrollBehavior = 'auto') => {
 		await tick();
 		if (messagesContainerElement) {
 			messagesContainerElement.scrollTo({
@@ -2020,7 +2022,7 @@
 	};
 
 	const getFeatures = () => {
-		let features = {};
+		let features: Record<string, any> = {};
 
 		if ($config?.features)
 			features = {
@@ -2819,16 +2821,10 @@
 										bind:history
 										bind:autoScroll
 										bind:prompt
-										setInputText={(text) => {
-											messageInput?.setText(text);
-										}}
 										{selectedModels}
 										{atSelectedModel}
 										{sendMessage}
 										{showMessage}
-										{submitMessage}
-										{continueResponse}
-										{regenerateResponse}
 										{mergeResponses}
 										{chatActionHandler}
 										{addMessages}

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { toast } from 'svelte-sonner';
 	import { marked } from 'marked';
 
@@ -11,7 +13,6 @@
 	import { updateFolderById } from '$lib/apis/folders';
 
 	import {
-		config,
 		user,
 		models as _models,
 		temporaryChatEnabled,
@@ -22,14 +23,13 @@
 	import { sanitizeResponseContent, extractCurlyBraceWords } from '$lib/utils';
 	import { ARKIVE_API_BASE_URL, ARKIVE_BASE_URL } from '$lib/constants';
 
-	import Suggestions from './Suggestions.svelte';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import EyeSlash from '$lib/components/icons/EyeSlash.svelte';
 	import MessageInput from './MessageInput.svelte';
 	import FolderPlaceholder from './Placeholder/FolderPlaceholder.svelte';
 	import FolderTitle from './Placeholder/FolderTitle.svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	export let createMessagePair: Function;
 	export let stopResponse: Function;
@@ -56,7 +56,7 @@
 	export let webSearchEnabled = false;
 
 	export let onUpload: Function = (e) => {};
-	export let onSelect = (e) => {};
+	export const onSelect = (_e: unknown) => {};
 	export let onChange = (e) => {};
 
 	export let toolServers = [];
@@ -240,19 +240,6 @@
 			in:fade={{ duration: 200, delay: 200 }}
 		>
 			<FolderPlaceholder folder={$selectedFolder} />
-		</div>
-	{:else}
-		<div class="mx-auto max-w-2xl font-primary mt-2" in:fade={{ duration: 200, delay: 200 }}>
-			<div class="mx-5">
-				<Suggestions
-					suggestionPrompts={atSelectedModel?.info?.meta?.suggestion_prompts ??
-						models[selectedModelIdx]?.info?.meta?.suggestion_prompts ??
-						$config?.default_prompt_suggestions ??
-						[]}
-					inputValue={prompt}
-					{onSelect}
-				/>
-			</div>
 		</div>
 	{/if}
 </div>

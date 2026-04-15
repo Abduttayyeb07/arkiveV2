@@ -1,6 +1,8 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { getContext } from 'svelte';
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	import { copyToClipboard } from '$lib/utils';
 	import { settings } from '$lib/stores';
@@ -15,8 +17,15 @@
 	export let done: boolean = true;
 	export let editCodeBlock: boolean = true;
 	export let sourceIds: string[] = [];
-	export let onTaskClick: Function = () => {};
-	export let onSourceClick: Function = () => {};
+	export let onTaskClick: (payload: {
+		id: string;
+		token: import('marked').Token;
+		tokenIdx: number;
+		item: unknown;
+		itemIdx: number;
+		checked: boolean;
+	}) => void = () => {};
+	export let onSourceClick: (event?: MouseEvent) => void = () => {};
 
 	const fenceType: string = token.fenceType ?? 'default';
 

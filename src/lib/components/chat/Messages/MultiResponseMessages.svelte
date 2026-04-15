@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import dayjs from 'dayjs';
 	import { onMount, tick, getContext } from 'svelte';
 	import { createEventDispatcher } from 'svelte';
@@ -19,7 +21,7 @@
 	import localizedFormat from 'dayjs/plugin/localizedFormat';
 	import ProfileImage from './ProfileImage.svelte';
 	import { ARKIVE_BASE_URL } from '$lib/constants';
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 	dayjs.extend(localizedFormat);
 
 	export let chatId;
@@ -31,18 +33,11 @@
 	export let readOnly = false;
 	export let editCodeBlock = true;
 
-	export let setInputText: Function = () => {};
 	export let updateChat: Function;
 	export let editMessage: Function;
 	export let saveMessage: Function;
-	export let rateMessage: Function;
-	export let actionMessage: Function;
-
-	export let submitMessage: Function;
 	export let deleteMessage: Function;
 
-	export let continueResponse: Function;
-	export let regenerateResponse: Function;
 	export let mergeResponses: Function;
 
 	export let addMessages: Function;
@@ -55,8 +50,8 @@
 
 	let currentMessageId;
 	let parentMessage;
-	let groupedMessageIds = {};
-	let groupedMessageIdsIdx = {};
+	let groupedMessageIds: Record<string, any> = {};
+	let groupedMessageIdsIdx: Record<string, any> = {};
 
 	let selectedModelIdx = null;
 
@@ -303,21 +298,10 @@
 									gotoMessage={(message, messageIdx) => gotoMessage(selectedModelIdx, messageIdx)}
 									showPreviousMessage={() => showPreviousMessage(selectedModelIdx)}
 									showNextMessage={() => showNextMessage(selectedModelIdx)}
-									{setInputText}
 									{updateChat}
 									{editMessage}
 									{saveMessage}
-									{rateMessage}
 									{deleteMessage}
-									{actionMessage}
-									{submitMessage}
-									{continueResponse}
-									regenerateResponse={async (message, prompt = null) => {
-										regenerateResponse(message, prompt);
-										await tick();
-										groupedMessageIdsIdx[selectedModelIdx] =
-											groupedMessageIds[selectedModelIdx].messageIds.length - 1;
-									}}
 									{addMessages}
 									{readOnly}
 									{topPadding}
@@ -359,21 +343,10 @@
 										gotoMessage={(message, messageIdx) => gotoMessage(modelIdx, messageIdx)}
 										showPreviousMessage={() => showPreviousMessage(modelIdx)}
 										showNextMessage={() => showNextMessage(modelIdx)}
-										{setInputText}
 										{updateChat}
 										{editMessage}
 										{saveMessage}
-										{rateMessage}
 										{deleteMessage}
-										{actionMessage}
-										{submitMessage}
-										{continueResponse}
-										regenerateResponse={async (message, prompt = null) => {
-											regenerateResponse(message, prompt);
-											await tick();
-											groupedMessageIdsIdx[modelIdx] =
-												groupedMessageIds[modelIdx].messageIds.length - 1;
-										}}
 										{addMessages}
 										{readOnly}
 										{editCodeBlock}

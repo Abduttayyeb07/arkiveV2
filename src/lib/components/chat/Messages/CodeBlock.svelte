@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import hljs from 'highlight.js';
 	import { toast } from 'svelte-sonner';
 	import { getContext, onMount, tick, onDestroy } from 'svelte';
@@ -18,20 +20,17 @@
 	import CodeEditor from '$lib/components/common/CodeEditor.svelte';
 	import SvgPanZoom from '$lib/components/common/SVGPanZoom.svelte';
 
-	import ChevronUp from '$lib/components/icons/ChevronUp.svelte';
 	import ChevronUpDown from '$lib/components/icons/ChevronUpDown.svelte';
-	import CommandLine from '$lib/components/icons/CommandLine.svelte';
-	import Cube from '$lib/components/icons/Cube.svelte';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	export let id = '';
 	export let edit = true;
 
-	export let onSave = (e) => {};
-	export let onUpdate = (e) => {};
-	export let onPreview = (e) => {};
+	export let onSave: (value: string) => void = () => {};
+	export let onUpdate: (value: unknown) => void = () => {};
+	export let onPreview: (value: string) => void = () => {};
 
 	export let save = false;
 	export let run = true;
@@ -41,13 +40,13 @@
 	export let token;
 	export let lang = '';
 	export let code = '';
-	export let attributes = {};
+	export let attributes: Record<string, any> = {};
 
 	export let className = '';
 	export let editorClassName = '';
 	export let stickyButtonsClassName = 'top-0';
 
-	let localPyodideWorker = null;
+	let localPyodideWorker: Worker | null = null;
 
 	let _code = '';
 	$: if (code) {
@@ -63,7 +62,6 @@
 	let renderHTML = null;
 	let renderError = null;
 
-	let highlightedCode = null;
 	let executing = false;
 
 	let stdout = null;
@@ -493,7 +491,7 @@
 						</div>
 					</button>
 
-					{#if ($config?.features?.enable_code_execution ?? true) && (lang.toLowerCase() === 'python' || lang.toLowerCase() === 'py' || (lang === '' && checkPythonCode(code)))}
+					{#if ($config?.features?.enable_code_interpreter ?? true) && (lang.toLowerCase() === 'python' || lang.toLowerCase() === 'py' || (lang === '' && checkPythonCode(code)))}
 						{#if executing}
 							<div
 								class="run-code-button bg-none border-none p-0.5 cursor-not-allowed bg-white dark:bg-black"
@@ -595,7 +593,7 @@
 				<div
 					id="plt-canvas-{id}"
 					class="bg-gray-50 dark:bg-black dark:text-white max-w-full overflow-x-auto scrollbar-hidden"
-				/>
+				></div>
 
 				{#if executing || stdout || stderr || result || files}
 					<div

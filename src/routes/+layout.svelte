@@ -14,6 +14,7 @@
 		user,
 		settings,
 		theme,
+		models,
 		ARKIVE_NAME,
 		ARKIVE_VERSION,
 		ARKIVE_DEPLOYMENT_ID,
@@ -27,6 +28,7 @@
 		isLastActiveTab,
 		isApp,
 		appInfo,
+		appData,
 		toolServers,
 		playingNotificationSound,
 		channels,
@@ -60,7 +62,7 @@
 		removeTerminalConnection
 	} from '$lib/utils/connections';
 
-	import { ARKIVE_API_BASE_URL, ARKIVE_BASE_URL, ARKIVE_HOSTNAME } from '$lib/constants';
+	import { ARKIVE_API_BASE_URL, ARKIVE_BASE_URL } from '$lib/constants';
 	import { bestMatchingLanguage, displayFileHandler } from '$lib/utils';
 	import { setTextScale } from '$lib/utils/text-scale';
 
@@ -296,9 +298,9 @@
 			worker.removeEventListener('message', onMessage);
 			worker.removeEventListener('error', onError);
 
-			data['stdout'] && (stdout = data['stdout']);
-			data['stderr'] && (stderr = data['stderr']);
-			data['result'] && (result = data['result']);
+			if (data.stdout) stdout = data.stdout;
+			if (data.stderr) stderr = data.stderr;
+			if (data.result) result = data.result;
 
 			if (cb) {
 				cb(
@@ -412,8 +414,6 @@
 	};
 
 	const chatEventHandler = async (event, cb) => {
-		const chat = $page.url.pathname.includes(`/c/${event.chat_id}`);
-
 		// Skip events from temporary chats that are not the current chat.
 		// This prevents notifications from being sent to other tabs/devices
 		// for privacy, since temporary chats are not meant to be persisted or visible elsewhere.
@@ -488,7 +488,7 @@
 				executeTool(data, cb);
 			} else if (type === 'request:chat:completion') {
 				console.log(data, $socket.id);
-				const { session_id, channel, form_data, model } = data;
+				const { channel, form_data, model } = data;
 
 				try {
 					const directConnections = $settings?.directConnections ?? {};
@@ -506,11 +506,7 @@
 								form_data['model'] = form_data['model'].replace(`${prefixId}.`, ``);
 							}
 
-							const [res, controller] = await chatCompletion(
-								OPENAI_API_KEY,
-								form_data,
-								OPENAI_API_URL
-							);
+							const [res] = await chatCompletion(OPENAI_API_KEY, form_data, OPENAI_API_URL);
 
 							if (res) {
 								// raise if the response is not ok
@@ -529,7 +525,7 @@
 									const decoder = new TextDecoder();
 
 									const processStream = async () => {
-										while (true) {
+										for (;;) {
 											// Read data chunks from the response stream
 											const { done, value } = await reader.read();
 											if (done) {
@@ -585,7 +581,7 @@
 
 		// handle channel created event
 		if (event.data?.type === 'channel:created') {
-			const res = await getChannels(localStorage.token).catch(async (error) => {
+			const res = await getChannels(localStorage.token).catch(async () => {
 				return null;
 			});
 
@@ -636,7 +632,7 @@
 						})
 					);
 				} else {
-					const res = await getChannels(localStorage.token).catch(async (error) => {
+					const res = await getChannels(localStorage.token).catch(async () => {
 						return null;
 					});
 
@@ -757,9 +753,11 @@
 
 	const windowMessageEventHandler = async (event) => {
 		if (
-			!['https://github.com/Abduttayyeb07/ArkiveV2IA', 'https://github.com/Abduttayyeb07/ArkiveV2IA', 'http://localhost:9999'].includes(
-				event.origin
-			)
+			![
+				'https://github.com/Abduttayyeb07/ArkiveV2IA',
+				'https://github.com/Abduttayyeb07/ArkiveV2IA',
+				'http://localhost:9999'
+			].includes(event.origin)
 		) {
 			return;
 		}

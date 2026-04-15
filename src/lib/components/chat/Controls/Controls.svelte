@@ -1,7 +1,9 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { createEventDispatcher, getContext } from 'svelte';
 	const dispatch = createEventDispatcher();
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	import XMark from '$lib/components/icons/XMark.svelte';
 	import AdvancedParams from '../Settings/Advanced/AdvancedParams.svelte';
@@ -12,7 +14,7 @@
 	import { user, settings } from '$lib/stores';
 	export let models = [];
 	export let chatFiles = [];
-	export let params = {};
+	export let params: Record<string, any> = {};
 	export let embed = false;
 
 	// Persist collapsible section open/close state

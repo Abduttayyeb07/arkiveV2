@@ -1,10 +1,12 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { marked } from 'marked';
 	import fileSaver from 'file-saver';
 	const { saveAs } = fileSaver;
 
 	import { onMount, getContext, tick } from 'svelte';
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	import { ARKIVE_NAME, config, mobile, models as _models, settings, user } from '$lib/stores';
 	import {
@@ -324,13 +326,13 @@
 		await updateUserSettings(localStorage.token, { ui: $settings });
 	};
 
-	onMount(async () => {
-		await init();
-		const id = $page.url.searchParams.get('id');
-
-		if (id) {
-			selectedModelId = id;
-		}
+	onMount(() => {
+		init().then(() => {
+			const id = $page.url.searchParams.get('id');
+			if (id) {
+				selectedModelId = id;
+			}
+		});
 
 		const onKeyDown = (event) => {
 			if (event.key === 'Shift') {
@@ -597,7 +599,7 @@
 											alt="modelfile profile"
 											class=" rounded-full w-full h-auto object-cover"
 											on:error={(e) => {
-												e.target.src = '/favicon.png';
+												(e.target as HTMLImageElement).src = '/favicon.png';
 											}}
 										/>
 									</div>

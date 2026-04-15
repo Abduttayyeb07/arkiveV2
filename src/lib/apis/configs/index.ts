@@ -561,7 +561,7 @@ export const setModelsConfig = async (token: string, config: object) => {
 	return res;
 };
 
-export const setDefaultPromptSuggestions = async (token: string, promptSuggestions: string) => {
+export const setDefaultPromptSuggestions = async (token: string, promptSuggestions: any[]) => {
 	let error = null;
 
 	const res = await fetch(`${ARKIVE_API_BASE_URL}/configs/suggestions`, {

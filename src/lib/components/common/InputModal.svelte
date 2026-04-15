@@ -1,11 +1,13 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { onMount, getContext } from 'svelte';
 	import { settings } from '$lib/stores';
 
 	import Drawer from './Drawer.svelte';
 	import RichTextInput from './RichTextInput.svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	export let id = 'input-modal';
 
@@ -16,7 +18,7 @@
 	export let autocomplete = false;
 	export let generateAutoCompletion = null;
 
-	export let onChange = () => {};
+	export let onChange: (content: any) => void = () => {};
 	export let onClose = () => {};
 
 	let inputElement;

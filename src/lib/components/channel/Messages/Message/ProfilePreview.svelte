@@ -1,15 +1,19 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { LinkPreview } from 'bits-ui';
 	import { getContext } from 'svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 	import UserStatus from './UserStatus.svelte';
 	import UserStatusLinkPreview from './UserStatusLinkPreview.svelte';
 
 	export let user = null;
+	type Side = 'top' | 'right' | 'bottom' | 'left';
+	type Align = 'start' | 'center' | 'end';
 
-	export let align = 'center';
-	export let side = 'right';
+	export let align: Align = 'center';
+	export let side: Side = 'right';
 	export let sideOffset = 8;
 
 	let openPreview = false;

@@ -1,7 +1,9 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { getContext, onMount } from 'svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	export let onChange: Function = () => {};
 	export let state = 'private';
@@ -54,7 +56,7 @@
 					class="outline-hidden bg-transparent text-sm font-medium block w-fit pr-10 max-w-full placeholder-gray-400"
 					value={state === 'private' ? 'private' : 'public'}
 					on:change={(e) => {
-						if (e.target.value === 'public') {
+						if ((e.target as HTMLInputElement).value === 'public') {
 							state = 'public';
 						} else {
 							state = 'private';

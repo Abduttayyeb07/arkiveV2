@@ -1,14 +1,16 @@
-type ShortcutRegistry = {
-	[key in Shortcut]?: {
-		name: string;
-		keys: string[];
-		category: string;
-		tooltip?: string;
-		setting?: {
-			id: string;
-			value: any;
-		};
+export type ShortcutDefinition = {
+	name: string;
+	keys: string[];
+	category: string;
+	tooltip?: string;
+	setting?: {
+		id: string;
+		value: any;
 	};
+};
+
+type ShortcutRegistry = {
+	[key in Shortcut]?: ShortcutDefinition;
 };
 
 export enum Shortcut {

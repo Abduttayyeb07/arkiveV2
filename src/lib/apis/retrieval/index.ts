@@ -27,38 +27,7 @@ export const getRAGConfig = async (token: string) => {
 	return res;
 };
 
-type ChunkConfigForm = {
-	chunk_size: number;
-	chunk_overlap: number;
-};
-
-type DocumentIntelligenceConfigForm = {
-	key: string;
-	endpoint: string;
-	model: string;
-};
-
-type ContentExtractConfigForm = {
-	engine: string;
-	tika_server_url: string | null;
-	document_intelligence_config: DocumentIntelligenceConfigForm | null;
-};
-
-type YoutubeConfigForm = {
-	language: string[];
-	translation?: string | null;
-	proxy_url: string;
-};
-
-type RAGConfigForm = {
-	PDF_EXTRACT_IMAGES?: boolean;
-	ENABLE_GOOGLE_DRIVE_INTEGRATION?: boolean;
-	ENABLE_ONEDRIVE_INTEGRATION?: boolean;
-	chunk?: ChunkConfigForm;
-	content_extraction?: ContentExtractConfigForm;
-	web_loader_ssl_verification?: boolean;
-	youtube?: YoutubeConfigForm;
-};
+type RAGConfigForm = Record<string, any>;
 
 export const updateRAGConfig = async (token: string, payload: RAGConfigForm) => {
 	let error = null;
@@ -180,24 +149,7 @@ export const getEmbeddingConfig = async (token: string) => {
 	return res;
 };
 
-type OpenAIConfigForm = {
-	key: string;
-	url: string;
-};
-
-type AzureOpenAIConfigForm = {
-	key: string;
-	url: string;
-	version: string;
-};
-
-type EmbeddingModelUpdateForm = {
-	openai_config?: OpenAIConfigForm;
-	azure_openai_config?: AzureOpenAIConfigForm;
-	embedding_engine: string;
-	embedding_model: string;
-	embedding_batch_size?: number;
-};
+type EmbeddingModelUpdateForm = Record<string, any>;
 
 export const updateEmbeddingConfig = async (token: string, payload: EmbeddingModelUpdateForm) => {
 	let error = null;

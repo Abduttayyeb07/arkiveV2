@@ -5,9 +5,9 @@
 	import RecursiveFolder from './RecursiveFolder.svelte';
 	import { chatId, selectedFolder } from '$lib/stores';
 
-	export let folderRegistry = {};
+	export let folderRegistry: Record<string, any> = {};
 
-	export let folders = {};
+	export let folders: Record<string, any> = {};
 	export let shiftKey = false;
 
 	export let onDelete = (folderId) => {};

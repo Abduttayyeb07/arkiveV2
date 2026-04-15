@@ -1,9 +1,11 @@
-<script>
+<script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { getContext } from 'svelte';
-	const i18n = getContext('i18n');
 	import WebSearchResults from '../WebSearchResults.svelte';
 	import Search from '$lib/components/icons/Search.svelte';
-	import { t } from 'i18next';
+
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	export let status = null;
 	export let done = false;
@@ -24,7 +26,7 @@
 						<!-- $i18n.t('Searched {{count}} sites') -->
 						{#if status?.description?.includes('{{count}}')}
 							{$i18n.t(status?.description, {
-								count: (status?.urls || status?.items).length
+								count: (status?.urls ?? status?.items ?? []).length
 							})}
 						{:else if status?.description === 'No search query generated'}
 							{$i18n.t('No search query generated')}
@@ -59,7 +61,7 @@
 				</div>
 
 				<div class=" flex gap-1 flex-wrap mt-2">
-					{#each status.queries as query, idx (query)}
+					{#each status.queries as query (query)}
 						<div
 							class="bg-gray-50 dark:bg-gray-850 flex rounded-lg py-1 px-2 items-center gap-1 text-xs"
 						>
@@ -85,7 +87,7 @@
 				</div>
 
 				<div class=" flex gap-1 flex-wrap mt-2">
-					{#each status.queries as query, idx (query)}
+					{#each status.queries as query (query)}
 						<div
 							class="bg-gray-50 dark:bg-gray-850 flex rounded-lg py-1 px-2 items-center gap-1 text-xs"
 						>

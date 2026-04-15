@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import dayjs from 'dayjs';
 	import { toast } from 'svelte-sonner';
 	import { tick, getContext, onMount } from 'svelte';
@@ -18,7 +20,7 @@
 
 	import localizedFormat from 'dayjs/plugin/localizedFormat';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 	dayjs.extend(localizedFormat);
 
 	export let user;
@@ -307,8 +309,8 @@
 								const savedScrollTop = messagesContainer?.scrollTop;
 								const savedInnerScroll = editScrollContainer?.scrollTop;
 
-								e.target.style.height = '';
-								e.target.style.height = `${e.target.scrollHeight}px`;
+								(e.target as HTMLElement).style.height = '';
+								(e.target as HTMLElement).style.height = `${e.target.scrollHeight}px`;
 
 								if (messagesContainer) messagesContainer.scrollTop = savedScrollTop;
 								if (editScrollContainer) editScrollContainer.scrollTop = savedInnerScroll;
@@ -432,12 +434,12 @@
 												e.target.select();
 											}}
 											on:blur={(e) => {
-												gotoMessage(message, e.target.value - 1);
+												gotoMessage(message, (e.target as HTMLInputElement).value - 1);
 												messageIndexEdit = false;
 											}}
 											on:keydown={(e) => {
 												if (e.key === 'Enter') {
-													gotoMessage(message, e.target.value - 1);
+													gotoMessage(message, (e.target as HTMLInputElement).value - 1);
 													messageIndexEdit = false;
 												}
 											}}
@@ -612,12 +614,12 @@
 												e.target.select();
 											}}
 											on:blur={(e) => {
-												gotoMessage(message, e.target.value - 1);
+												gotoMessage(message, (e.target as HTMLInputElement).value - 1);
 												messageIndexEdit = false;
 											}}
 											on:keydown={(e) => {
 												if (e.key === 'Enter') {
-													gotoMessage(message, e.target.value - 1);
+													gotoMessage(message, (e.target as HTMLInputElement).value - 1);
 													messageIndexEdit = false;
 												}
 											}}

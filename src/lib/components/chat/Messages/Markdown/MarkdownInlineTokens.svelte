@@ -1,19 +1,19 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import DOMPurify from 'dompurify';
-	import { toast } from 'svelte-sonner';
 
 	import type { Token } from 'marked';
 	import { getContext } from 'svelte';
 	import { goto } from '$app/navigation';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	import { ARKIVE_BASE_URL } from '$lib/constants';
-	import { copyToClipboard, unescapeHtml } from '$lib/utils';
+	import { unescapeHtml } from '$lib/utils';
 
 	import Image from '$lib/components/common/Image.svelte';
 	import KatexRenderer from './KatexRenderer.svelte';
-	import Source from './Source.svelte';
 	import HtmlToken from './HTMLToken.svelte';
 	import TextToken from './MarkdownInlineTokens/TextToken.svelte';
 	import CodespanToken from './MarkdownInlineTokens/CodespanToken.svelte';
@@ -24,8 +24,8 @@
 	export let id: string;
 	export let done = true;
 	export let tokens: Token[];
-	export let sourceIds = [];
-	export let onSourceClick: Function = () => {};
+	export let sourceIds: string[] = [];
+	export let onSourceClick: (event?: MouseEvent) => void = () => {};
 
 	/**
 	 * Check if a URL is a same-origin note link and return the note ID if so.
@@ -71,7 +71,7 @@
 	{#if token.type === 'escape'}
 		{unescapeHtml(token.text)}
 	{:else if token.type === 'html'}
-		<HtmlToken {id} {token} {onSourceClick} />
+		<HtmlToken {id} {token} />
 	{:else if token.type === 'link'}
 		{@const noteId = getNoteIdFromHref(token.href)}
 		{#if noteId}
@@ -118,9 +118,10 @@
 			width="100%"
 			frameborder="0"
 			on:load={(e) => {
+				const iframe = e.currentTarget as HTMLIFrameElement;
+
 				try {
-					e.currentTarget.style.height =
-						e.currentTarget.contentWindow.document.body.scrollHeight + 20 + 'px';
+					iframe.style.height = iframe.contentWindow?.document.body.scrollHeight + 20 + 'px';
 				} catch {}
 			}}
 		></iframe>
@@ -132,7 +133,7 @@
 		) || ''}
 	{:else if token.type === 'citation'}
 		{#if (sourceIds ?? []).length > 0}
-			<SourceToken {id} {token} {sourceIds} onClick={onSourceClick} />
+			<SourceToken {token} {sourceIds} onClick={onSourceClick} />
 		{:else}
 			<TextToken {token} {done} />
 		{/if}

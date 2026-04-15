@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { ARKIVE_BASE_URL } from '$lib/constants';
 
 	import { settings } from '$lib/stores';
@@ -16,7 +18,7 @@
 	export let dismissible = false;
 	export let onDismiss = () => {};
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	let _src = '';
 	$: _src = src.startsWith('/') ? `${ARKIVE_BASE_URL}${src}` : src;

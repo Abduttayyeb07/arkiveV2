@@ -1,9 +1,11 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { toast } from 'svelte-sonner';
 
 	import { tick, getContext, onMount, createEventDispatcher } from 'svelte';
 	const dispatch = createEventDispatcher();
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	import { settings } from '$lib/stores';
 	import { copyToClipboard } from '$lib/utils';
@@ -21,7 +23,6 @@
 
 	export let user;
 
-	export let setInputText: Function = () => {};
 	export let gotoMessage;
 	export let showPreviousMessage;
 	export let showNextMessage;
@@ -30,12 +31,7 @@
 	export let editMessage;
 	export let saveMessage;
 	export let deleteMessage;
-	export let rateMessage;
-	export let actionMessage;
-	export let submitMessage;
 
-	export let regenerateResponse;
-	export let continueResponse;
 	export let mergeResponses;
 
 	export let addMessages;
@@ -81,19 +77,13 @@
 				{selectedModels}
 				isLastMessage={messageId === history.currentId}
 				siblings={history.messages[history.messages[messageId].parentId]?.childrenIds ?? []}
-				{setInputText}
 				{gotoMessage}
 				{showPreviousMessage}
 				{showNextMessage}
 				{updateChat}
 				{editMessage}
 				{saveMessage}
-				{rateMessage}
-				{actionMessage}
-				{submitMessage}
 				{deleteMessage}
-				{continueResponse}
-				{regenerateResponse}
 				{addMessages}
 				{readOnly}
 				{editCodeBlock}
@@ -107,16 +97,10 @@
 					{messageId}
 					{selectedModels}
 					isLastMessage={messageId === history?.currentId}
-					{setInputText}
 					{updateChat}
 					{editMessage}
 					{saveMessage}
-					{rateMessage}
-					{actionMessage}
-					{submitMessage}
 					{deleteMessage}
-					{continueResponse}
-					{regenerateResponse}
 					{mergeResponses}
 					{triggerScroll}
 					{addMessages}

@@ -1,4 +1,9 @@
 // Google Drive Picker API configuration
+// eslint-disable-next-line no-var
+declare var gapi: any;
+// eslint-disable-next-line no-var
+declare var google: any;
+
 let API_KEY = '';
 let CLIENT_ID = '';
 

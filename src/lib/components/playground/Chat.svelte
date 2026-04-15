@@ -6,6 +6,8 @@
 
 	import { goto } from '$app/navigation';
 	import { onMount, tick, getContext } from 'svelte';
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 
 	import {
 		OLLAMA_API_BASE_URL,
@@ -32,7 +34,7 @@
 	import Download from '../icons/Download.svelte';
 	import EllipsisHorizontal from '../icons/EllipsisHorizontal.svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	let loaded = false;
 
@@ -424,12 +426,14 @@
 								role: role === 'user' ? $i18n.t('a user') : $i18n.t('an assistant')
 							})}
 							on:input={(e) => {
-								e.target.style.height = '';
-								e.target.style.height = Math.min(e.target.scrollHeight, 150) + 'px';
+								const t = e.target as HTMLTextAreaElement;
+								t.style.height = '';
+								t.style.height = Math.min(t.scrollHeight, 150) + 'px';
 							}}
 							on:focus={(e) => {
-								e.target.style.height = '';
-								e.target.style.height = Math.min(e.target.scrollHeight, 150) + 'px';
+								const t = e.target as HTMLTextAreaElement;
+								t.style.height = '';
+								t.style.height = Math.min(t.scrollHeight, 150) + 'px';
 							}}
 							rows="2"
 						/>

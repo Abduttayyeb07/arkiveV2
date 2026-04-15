@@ -3,12 +3,12 @@ import { createClassComponent } from 'svelte/legacy';
 
 import tippy from 'tippy.js';
 
-export function getSuggestionRenderer(Component: any, ComponentProps = {}) {
+export function getSuggestionRenderer(Component: any, ComponentProps: Record<string, any> = {}) {
 	return function suggestionRenderer() {
 		let component = null;
 		let container: HTMLDivElement | null = null;
 
-		let popup: TippyInstance | null = null;
+		let popup: any | null = null;
 		let refEl: HTMLDivElement | null = null; // dummy reference
 
 		return {

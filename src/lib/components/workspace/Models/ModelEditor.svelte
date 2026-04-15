@@ -2,6 +2,8 @@
 	import { toast } from 'svelte-sonner';
 
 	import { onMount, getContext, tick } from 'svelte';
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { models, tools, functions, user } from '$lib/stores';
 	import { ARKIVE_BASE_URL, DEFAULT_CAPABILITIES } from '$lib/constants';
 
@@ -29,7 +31,7 @@
 	import LockClosed from '$lib/components/icons/LockClosed.svelte';
 	import { updateModelAccessGrants } from '$lib/apis/models';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	export let onSubmit: Function;
 	export let onBack: null | Function = null;
@@ -40,7 +42,6 @@
 	export let preset = true;
 
 	let loading = false;
-	let success = false;
 
 	let filesInputElement;
 	let inputFiles;
@@ -70,7 +71,7 @@
 	}
 
 	let system = '';
-	let info = {
+	let info: Record<string, any> = {
 		id: '',
 		base_model_id: null,
 		name: '',
@@ -85,7 +86,7 @@
 		}
 	};
 
-	let params = {
+	let params: Record<string, any> = {
 		system: ''
 	};
 
@@ -98,7 +99,7 @@
 
 	let capabilities = { ...DEFAULT_CAPABILITIES };
 	let defaultFeatureIds = [];
-	let builtinTools = {};
+	let builtinTools: Record<string, any> = {};
 
 	let actionIds = [];
 	let accessGrants = [];
@@ -233,7 +234,6 @@
 		await onSubmit(info);
 
 		loading = false;
-		success = false;
 	};
 
 	onMount(async () => {
@@ -603,7 +603,7 @@
 											<option value={null} class=" text-gray-900"
 												>{$i18n.t('Select a base model')}</option
 											>
-											{#each $models.filter((m) => (model ? m.id !== model.id : true) && !m?.preset && m?.owned_by !== 'arena' && !(m?.direct ?? false)) as model}
+											{#each $models.filter((m) => (model ? m.id !== model.id : true) && !m?.preset && m?.arena !== true && !(m?.direct ?? false)) as model}
 												<option value={model.id} class=" text-gray-900">{model.name}</option>
 											{/each}
 										</select>
@@ -895,7 +895,7 @@
 									value={JSON.stringify(info, null, 2)}
 									disabled
 									readonly
-								/>
+								></textarea>
 							</div>
 						{/if}
 					</div>

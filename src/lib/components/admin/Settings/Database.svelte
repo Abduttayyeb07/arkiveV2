@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import fileSaver from 'file-saver';
 	const { saveAs } = fileSaver;
 
@@ -10,7 +12,7 @@
 	import { getAllUsers } from '$lib/apis/users';
 	import { exportConfig, importConfig } from '$lib/apis/configs';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	export let saveHandler: Function;
 
@@ -57,11 +59,11 @@
 			type="file"
 			accept=".json"
 			on:change={(e) => {
-				const file = e.target.files[0];
+				const file = (e.target as HTMLInputElement).files[0];
 				const reader = new FileReader();
 
 				reader.onload = async (e) => {
-					const res = await importConfig(localStorage.token, JSON.parse(e.target.result)).catch(
+					const res = await importConfig(localStorage.token, JSON.parse(e.target.result as string)).catch(
 						(error) => {
 							toast.error(`${error}`);
 						}
@@ -70,7 +72,7 @@
 					if (res) {
 						toast.success($i18n.t('Config imported successfully'));
 					}
-					e.target.value = null;
+					(e.target as unknown as HTMLInputElement).value = null;
 				};
 
 				reader.readAsText(file);

@@ -1,6 +1,8 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { getContext, tick } from 'svelte';
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	import { settings } from '$lib/stores';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
@@ -11,13 +13,13 @@
 	import ConfirmDialog from '$lib/components/common/ConfirmDialog.svelte';
 
 	export let onDelete = () => {};
-	export let onSubmit = () => {};
+	export let onSubmit: (connection: any) => void = () => {};
 
 	export let pipeline = false;
 
 	export let url = '';
 	export let key = '';
-	export let config = {};
+	export let config: Record<string, any> = {};
 
 	let showConfigModal = false;
 	let showDeleteConfirmDialog = false;

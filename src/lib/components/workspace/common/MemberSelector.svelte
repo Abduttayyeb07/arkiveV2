@@ -1,8 +1,10 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { toast } from 'svelte-sonner';
 	import { getContext, onMount, onDestroy } from 'svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	import { user as _user } from '$lib/stores';
 	import { getUserInfoById, searchUsers } from '$lib/apis/users';
@@ -33,8 +35,8 @@
 		? groups.filter((group) => group.name.toLowerCase().includes(query.toLowerCase()))
 		: [];
 
-	let selectedGroup = {};
-	let selectedUsers = {};
+	let selectedGroup: Record<string, any> = {};
+	let selectedUsers: Record<string, any> = {};
 
 	let page = 1;
 	let users = null;

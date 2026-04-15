@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import dayjs from 'dayjs';
 	import relativeTime from 'dayjs/plugin/relativeTime';
 	import isToday from 'dayjs/plugin/isToday';
@@ -52,12 +54,12 @@
 	export let disabled = false;
 	export let pending = false;
 
-	export let onDelete: Function = () => {};
-	export let onEdit: Function = () => {};
-	export let onReply: Function = () => {};
-	export let onPin: Function = () => {};
-	export let onThread: Function = () => {};
-	export let onReaction: Function = () => {};
+	export let onDelete: false | (() => void | Promise<void>) = () => {};
+	export let onEdit: false | ((content: string | null) => void | Promise<void>) = () => {};
+	export let onReply: false | ((message: any) => void | Promise<void>) = () => {};
+	export let onPin: false | ((message: any) => void | Promise<void>) = () => {};
+	export let onThread: false | ((messageId: string) => void | Promise<void>) = () => {};
+	export let onReaction: false | ((name: string) => void | Promise<void>) = () => {};
 
 	let showButtons = false;
 
@@ -86,7 +88,9 @@
 	title={$i18n.t('Delete Message')}
 	message={$i18n.t('Are you sure you want to delete this message?')}
 	onConfirm={async () => {
-		await onDelete();
+		if (onDelete) {
+			await onDelete();
+		}
 	}}
 />
 
@@ -118,7 +122,9 @@
 							onClose={() => (showButtons = false)}
 							onSubmit={(name) => {
 								showButtons = false;
-								onReaction(name);
+								if (onReaction) {
+									onReaction(name);
+								}
 							}}
 						>
 							<Tooltip content={$i18n.t('Add Reaction')}>
@@ -139,7 +145,9 @@
 							<button
 								class="hover:bg-gray-100 dark:hover:bg-gray-800 transition rounded-lg p-0.5"
 								on:click={() => {
-									onReply(message);
+									if (onReply) {
+										onReply(message);
+									}
 								}}
 							>
 								<ArrowUpLeftAlt className="size-5" />
@@ -151,7 +159,9 @@
 						<button
 							class="hover:bg-gray-100 dark:hover:bg-gray-800 transition rounded-lg p-1"
 							on:click={() => {
-								onPin(message);
+								if (onPin) {
+									onPin(message);
+								}
 							}}
 						>
 							{#if message?.is_pinned}
@@ -167,7 +177,9 @@
 							<button
 								class="hover:bg-gray-100 dark:hover:bg-gray-800 transition rounded-lg p-1"
 								on:click={() => {
-									onThread(message.id);
+									if (onThread) {
+										onThread(message.id);
+									}
 								}}
 							>
 								<ChatBubbleOvalEllipsis />
@@ -243,7 +255,7 @@
 								message.reply_to_message.meta.model_id}
 							class="size-4 ml-0.5 rounded-full object-cover"
 							on:error={(e) => {
-								e.currentTarget.src = '/favicon.png';
+								(e.currentTarget as HTMLImageElement).src = '/favicon.png';
 							}}
 						/>
 					{:else}
@@ -282,7 +294,7 @@
 							alt={message.meta.model_name ?? message.meta.model_id}
 							class="size-8 translate-y-1 ml-0.5 object-cover rounded-full"
 							on:error={(e) => {
-								e.currentTarget.src = '/favicon.png';
+								(e.currentTarget as HTMLImageElement).src = '/favicon.png';
 							}}
 						/>
 					{:else if message.user?.role === 'webhook'}
@@ -386,12 +398,14 @@
 							className=" bg-transparent outline-hidden w-full resize-none"
 							bind:value={editedContent}
 							onKeydown={(e) => {
-								if (e.key === 'Escape') {
+								const keyboardEvent = e as KeyboardEvent;
+
+								if (keyboardEvent.key === 'Escape') {
 									document.getElementById('close-edit-message-button')?.click();
 								}
 
-								const isCmdOrCtrlPressed = e.metaKey || e.ctrlKey;
-								const isEnterPressed = e.key === 'Enter';
+								const isCmdOrCtrlPressed = keyboardEvent.metaKey || keyboardEvent.ctrlKey;
+								const isEnterPressed = keyboardEvent.key === 'Enter';
 
 								if (isCmdOrCtrlPressed && isEnterPressed) {
 									document.getElementById('confirm-edit-message-button')?.click();
@@ -415,7 +429,9 @@
 									id="confirm-edit-message-button"
 									class="px-3.5 py-1.5 bg-gray-900 dark:bg-white hover:bg-gray-850 text-gray-100 dark:text-gray-800 transition rounded-3xl"
 									on:click={async () => {
-										onEdit(editedContent);
+										if (onEdit) {
+											await onEdit(editedContent);
+										}
 										edit = false;
 										editedContent = null;
 									}}
@@ -504,7 +520,9 @@
 								{#if onReaction}
 									<EmojiPicker
 										onSubmit={(name) => {
-											onReaction(name);
+											if (onReaction) {
+												onReaction(name);
+											}
 										}}
 									>
 										<Tooltip content={$i18n.t('Add Reaction')}>
@@ -525,7 +543,9 @@
 							<button
 								class="flex items-center text-xs py-1 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition"
 								on:click={() => {
-									onThread(message.id);
+									if (onThread) {
+										onThread(message.id);
+									}
 								}}
 							>
 								<span class="font-medium mr-1">

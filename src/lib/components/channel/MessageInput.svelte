@@ -1,10 +1,12 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { toast } from 'svelte-sonner';
 	import { v4 as uuidv4 } from 'uuid';
 
 	import { tick, getContext, onMount } from 'svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	import { config, mobile, settings, socket, user } from '$lib/stores';
 	import {
@@ -81,7 +83,7 @@
 	let showInputVariablesModal = false;
 	let inputVariablesModalCallback: (variableValues: Record<string, any>) => void;
 	let inputVariables: Record<string, any> = {};
-	let inputVariableValues = {};
+	let inputVariableValues: Record<string, any> = {};
 
 	const inputVariableHandler = async (text: string): Promise<string> => {
 		inputVariables = extractInputVariables(text);
@@ -920,15 +922,15 @@
 													) {
 														// Prevent Enter key from creating a new line
 														// Uses keyCode '13' for Enter key for chinese/japanese keyboards
-														if (e.keyCode === 13 && !e.shiftKey) {
+														if ((e as any).keyCode === 13 && !(e as KeyboardEvent).shiftKey) {
 															e.preventDefault();
 														}
 
 														// Submit the content when Enter key is pressed
 														if (
 															(content !== '' || files.length > 0) &&
-															e.keyCode === 13 &&
-															!e.shiftKey
+															(e as any).keyCode === 13 &&
+															!(e as KeyboardEvent).shiftKey
 														) {
 															submitHandler();
 														}
@@ -944,7 +946,7 @@
 												e = e.detail.event;
 												console.log(e);
 
-												const clipboardData = e.clipboardData || window.clipboardData;
+												const clipboardData = (e as ClipboardEvent).clipboardData || window.clipboardData;
 
 												if (clipboardData && clipboardData.items) {
 													for (const item of clipboardData.items) {

@@ -1,4 +1,8 @@
+<!-- eslint-disable @typescript-eslint/no-unused-vars, svelte/no-at-html-tags -->
 <script lang="ts">
+	/* eslint-disable @typescript-eslint/no-unused-vars */
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { getContext, onDestroy, tick } from 'svelte';
 	import panzoom, { type PanZoom } from 'panzoom';
 	import { marked } from 'marked';
@@ -16,7 +20,7 @@
 	let pdfViewerRef: PDFViewer;
 	let fileCodeEditorRef: FileCodeEditor;
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	export let selectedFile: string | null = null;
 	export let fileLoading = false;
@@ -48,14 +52,16 @@
 	export let saving = false;
 	let editTextarea: HTMLTextAreaElement;
 
-	// Reset edit state when switching files
-	$: (selectedFile, resetEdit());
-
 	const resetEdit = () => {
 		editing = false;
 		editContent = '';
 		saving = false;
 	};
+
+	// Reset edit state when switching files
+	$: if (selectedFile !== undefined) {
+		resetEdit();
+	}
 
 	export const startEdit = async () => {
 		editContent = fileContent ?? '';
@@ -109,7 +115,7 @@
 			: '';
 
 	let markdownEl: HTMLDivElement;
-	let mermaidInstance: any = null;
+	let mermaidInstance: unknown = null;
 
 	const renderMermaidBlocks = async (el: HTMLDivElement) => {
 		if (!el) return;
@@ -242,7 +248,9 @@
 	}
 
 	export let showRaw = false;
-	$: (selectedFile, (showRaw = false)); // reset to preview mode when switching files
+	$: if (selectedFile !== undefined) {
+		showRaw = false;
+	} // reset to preview mode when switching files
 
 	// Auto-switch to raw/editor mode for empty previewable files so the user
 	// can start editing immediately instead of seeing a blank preview.
@@ -360,6 +368,7 @@
 				>
 					<button
 						class="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30"
+						aria-label={$i18n.t('Previous slide')}
 						disabled={currentSlide === 0}
 						on:click={() => {
 							resetImageView();
@@ -382,6 +391,7 @@
 					<span>{currentSlide + 1} / {fileOfficeSlides.length}</span>
 					<button
 						class="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30"
+						aria-label={$i18n.t('Next slide')}
 						disabled={currentSlide === fileOfficeSlides.length - 1}
 						on:click={() => {
 							resetImageView();
@@ -416,7 +426,7 @@
 					: ''}{($settings?.iframeSandboxAllowSameOrigin ?? false) ? ' allow-same-origin' : ''}"
 				class="w-full h-full border-none bg-white"
 				title="HTML Preview"
-			/>
+			></iframe>
 		{:else if isHtml && showRaw}
 			<div class="absolute inset-0">
 				<FileCodeEditor
@@ -506,7 +516,7 @@
 				bind:value={editContent}
 				class="w-full h-full text-xs font-mono text-gray-800 dark:text-gray-200 whitespace-pre break-all leading-relaxed p-3 bg-transparent border-none outline-none resize-none"
 				spellcheck="false"
-			/>
+			></textarea>
 		{:else}
 			<pre
 				class="text-xs font-mono text-gray-800 dark:text-gray-200 whitespace-pre-wrap break-all leading-relaxed p-3">{fileContent}</pre>

@@ -1,8 +1,10 @@
-<script>
+<script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { toast } from 'svelte-sonner';
 
 	import { createEventDispatcher, getContext, onMount } from 'svelte';
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 	const dispatch = createEventDispatcher();
 
 	import { models, config as _config } from '$lib/stores';
@@ -57,10 +59,10 @@
 	let showDefaultParams = false;
 	let showDefaultPromptSuggestions = false;
 
-	let defaultCapabilities = {};
+	let defaultCapabilities: Record<string, any> = {};
 	let defaultFeatureIds = [];
-	let defaultParams = {};
-	let builtinTools = {};
+	let defaultParams: Record<string, any> = {};
+	let builtinTools: Record<string, any> = {};
 	let promptSuggestions = [];
 
 	$: if (show) {

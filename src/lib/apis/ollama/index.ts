@@ -1,6 +1,6 @@
 import { OLLAMA_API_BASE_URL } from '$lib/constants';
 
-export const verifyOllamaConnection = async (token: string = '', connection: dict = {}) => {
+export const verifyOllamaConnection = async (token: string = '', connection: Record<string, any> = {}) => {
 	let error = null;
 
 	const res = await fetch(`${OLLAMA_API_BASE_URL}/verify`, {
@@ -380,7 +380,7 @@ export const unloadModel = async (token: string, tagName: string) => {
 	return res;
 };
 
-export const createModel = async (token: string, payload: object, urlIdx: string | null = null) => {
+export const createModel = async (token: string, payload: object, urlIdx: number | null = null) => {
 	let error = null;
 
 	const res = await fetch(
@@ -406,7 +406,7 @@ export const createModel = async (token: string, payload: object, urlIdx: string
 	return res;
 };
 
-export const deleteModel = async (token: string, tagName: string, urlIdx: string | null = null) => {
+export const deleteModel = async (token: string, tagName: string, urlIdx: number | null = null) => {
 	let error = null;
 
 	const res = await fetch(
@@ -483,7 +483,7 @@ export const pullModel = async (token: string, tagName: string, urlIdx: number |
 export const downloadModel = async (
 	token: string,
 	download_url: string,
-	urlIdx: string | null = null
+	urlIdx: number | null = null
 ) => {
 	let error = null;
 
@@ -516,7 +516,7 @@ export const downloadModel = async (
 	return res;
 };
 
-export const uploadModel = async (token: string, file: File, urlIdx: string | null = null) => {
+export const uploadModel = async (token: string, file: File, urlIdx: number | null = null) => {
 	let error = null;
 
 	const formData = new FormData();

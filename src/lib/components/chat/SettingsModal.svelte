@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { getContext, onMount, tick } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { config, models, settings, user } from '$lib/stores';
@@ -10,7 +12,7 @@
 	import Account from './Settings/Account.svelte';
 	import About from './Settings/About.svelte';
 	import General from './Settings/General.svelte';
-	import Interface from './Settings/Interface.svelte';
+	import Permissions from './Settings/Permissions.svelte';
 	import Audio from './Settings/Audio.svelte';
 	import DataControls from './Settings/DataControls.svelte';
 	import Personalization from './Settings/Personalization.svelte';
@@ -26,10 +28,9 @@
 	import InfoCircle from '../icons/InfoCircle.svelte';
 	import WrenchAlt from '../icons/WrenchAlt.svelte';
 	import Face from '../icons/Face.svelte';
-	import AppNotification from '../icons/AppNotification.svelte';
 	import UserBadgeCheck from '../icons/UserBadgeCheck.svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	export let show = false;
 
@@ -76,134 +77,6 @@
 				'translate',
 				'arkivesettings',
 				'arkive settings'
-			]
-		},
-		{
-			id: 'interface',
-			title: 'Interface',
-			keywords: [
-				'allow user location',
-				'allow voice interruption in call',
-				'allowuserlocation',
-				'allowvoiceinterruptionincall',
-				'always collapse codeblocks',
-				'always collapse code blocks',
-				'always expand details',
-				'always on web search',
-				'always play notification sound',
-				'alwayscollapsecodeblocks',
-				'alwaysexpanddetails',
-				'alwaysonwebsearch',
-				'alwaysplaynotificationsound',
-				'android',
-				'auto chat tags',
-				'auto copy response to clipboard',
-				'auto title',
-				'autochattags',
-				'autocopyresponsetoclipboard',
-				'autotitle',
-				'beta',
-				'call',
-				'chat background image',
-				'chat bubble ui',
-				'chat direction',
-				'chat tags autogen',
-				'chat tags autogeneration',
-				'chat ui',
-				'chatbackgroundimage',
-				'chatbubbleui',
-				'chatdirection',
-				'chat tags autogeneration',
-				'chattagsautogeneration',
-				'chatui',
-				'copy formatted text',
-				'copyformattedtext',
-				'default model',
-				'defaultmodel',
-				'design',
-				'detect artifacts automatically',
-				'detectartifactsautomatically',
-				'display emoji in call',
-				'display username',
-				'displayemojiincall',
-				'displayusername',
-				'enter key behavior',
-				'enterkeybehavior',
-				'expand mode',
-				'expandmode',
-				'file',
-				'followup autogeneration',
-				'followupautogeneration',
-				'fullscreen',
-				'fullwidthmode',
-				'full width mode',
-				'haptic feedback',
-				'hapticfeedback',
-				'high contrast mode',
-				'highcontrastmode',
-				'iframe sandbox allow forms',
-				'iframe sandbox allow same origin',
-				'iframesandboxallowforms',
-				'iframesandboxallowsameorigin',
-				'imagecompression',
-				'image compression',
-				'imagemaxcompressionsize',
-				'image max compression size',
-				'interface customization',
-				'interface options',
-				'interfacecustomization',
-				'interfaceoptions',
-				'landing page mode',
-				'landingpagemode',
-				'layout',
-				'left to right',
-				'left-to-right',
-				'lefttoright',
-				'ltr',
-				'paste large text as file',
-				'pastelargetextasfile',
-				'reset background',
-				'resetbackground',
-				'response auto copy',
-				'responseautocopy',
-				'rich text input for chat',
-				'richtextinputforchat',
-				'right to left',
-				'right-to-left',
-				'righttoleft',
-				'rtl',
-				'scroll behavior',
-				'scroll on branch change',
-				'scrollbehavior',
-				'scrollonbranchchange',
-				'select model',
-				'selectmodel',
-				'settings',
-				'show username',
-				'showusername',
-				'stream large chunks',
-				'streamlargechunks',
-				'stylized pdf export',
-				'stylizedpdfexport',
-				'title autogeneration',
-				'titleautogeneration',
-				'toast notifications for new updates',
-				'toastnotificationsfornewupdates',
-				'upload background',
-				'uploadbackground',
-				'user interface',
-				'user location access',
-				'userinterface',
-				'userlocationaccess',
-				'vibration',
-				'voice control',
-				'voicecontrol',
-				'widescreen mode',
-				'widescreenmode',
-				'whatsnew',
-				'whats new',
-				'websearchinchat',
-				'web search in chat'
 			]
 		},
 		{
@@ -423,6 +296,21 @@
 			]
 		},
 		{
+			id: 'permissions',
+			title: 'Permissions',
+			keywords: [
+				'permissions',
+				'access',
+				'allowed',
+				'role',
+				'what can i do',
+				'features',
+				'workspace',
+				'sharing',
+				'capabilities'
+			]
+		},
+		{
 			id: 'about',
 			title: 'About',
 			keywords: [
@@ -489,10 +377,6 @@
 					$user?.role === 'admin' ||
 					($user?.role === 'user' && $user?.permissions?.features?.direct_tool_servers)
 				);
-			}
-
-			if (tab.id === 'interface') {
-				return $user?.role === 'admin' || ($user?.permissions?.settings?.interface ?? true);
 			}
 
 			if (tab.id === 'personalization') {
@@ -651,30 +535,6 @@
 								</div>
 								<div class=" self-center">{$i18n.t('General')}</div>
 							</button>
-						{:else if tabId === 'interface'}
-							<button
-								role="tab"
-								aria-controls="tab-interface"
-								aria-selected={selectedTab === 'interface'}
-								class={`px-0.5 md:px-2.5 py-1 min-w-fit rounded-xl flex-1 md:flex-none flex text-left transition
-								${
-									selectedTab === 'interface'
-										? ($settings?.highContrastMode ?? false)
-											? 'dark:bg-gray-800 bg-gray-200'
-											: ''
-										: ($settings?.highContrastMode ?? false)
-											? 'hover:bg-gray-200 dark:hover:bg-gray-800'
-											: 'text-gray-300 dark:text-gray-600 hover:text-gray-700 dark:hover:text-white'
-								}`}
-								on:click={() => {
-									selectedTab = 'interface';
-								}}
-							>
-								<div class=" self-center mr-2">
-									<AppNotification strokeWidth="2" />
-								</div>
-								<div class=" self-center">{$i18n.t('Interface')}</div>
-							</button>
 						{:else if tabId === 'connections'}
 							{#if $user?.role === 'admin' || ($user?.role === 'user' && $config?.features?.enable_direct_connections)}
 								<button
@@ -823,6 +683,32 @@
 								</div>
 								<div class=" self-center">{$i18n.t('Account')}</div>
 							</button>
+						{:else if tabId === 'permissions'}
+							<button
+								role="tab"
+								aria-controls="tab-permissions"
+								aria-selected={selectedTab === 'permissions'}
+								class={`px-0.5 md:px-2.5 py-1 min-w-fit rounded-xl flex-1 md:flex-none flex text-left transition
+								${
+									selectedTab === 'permissions'
+										? ($settings?.highContrastMode ?? false)
+											? 'dark:bg-gray-800 bg-gray-200'
+											: ''
+										: ($settings?.highContrastMode ?? false)
+											? 'hover:bg-gray-200 dark:hover:bg-gray-800'
+											: 'text-gray-300 dark:text-gray-600 hover:text-gray-700 dark:hover:text-white'
+								}`}
+								on:click={() => {
+									selectedTab = 'permissions';
+								}}
+							>
+								<div class=" self-center mr-2">
+									<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-4">
+										<path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clip-rule="evenodd" />
+									</svg>
+								</div>
+								<div class=" self-center">{$i18n.t('Permissions')}</div>
+							</button>
 						{:else if tabId === 'about'}
 							<button
 								role="tab"
@@ -883,13 +769,6 @@
 							toast.success($i18n.t('Settings saved successfully!'));
 						}}
 					/>
-				{:else if selectedTab === 'interface'}
-					<Interface
-						{saveSettings}
-						on:save={() => {
-							toast.success($i18n.t('Settings saved successfully!'));
-						}}
-					/>
 				{:else if selectedTab === 'connections'}
 					<Connections
 						saveSettings={async (updated) => {
@@ -927,6 +806,8 @@
 							toast.success($i18n.t('Settings saved successfully!'));
 						}}
 					/>
+				{:else if selectedTab === 'permissions'}
+					<Permissions />
 				{:else if selectedTab === 'about'}
 					<About />
 				{/if}
@@ -952,8 +833,4 @@
 		scrollbar-width: none; /* Firefox */
 	}
 
-	input[type='number'] {
-		appearance: textfield;
-		-moz-appearance: textfield; /* Firefox */
-	}
 </style>

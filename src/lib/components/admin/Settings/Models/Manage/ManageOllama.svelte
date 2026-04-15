@@ -1,7 +1,9 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { toast } from 'svelte-sonner';
 	import { getContext, onMount } from 'svelte';
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	import { ARKIVE_NAME, models, MODEL_DOWNLOAD_POOL, user, config, settings } from '$lib/stores';
 	import { splitStream } from '$lib/utils';
@@ -36,7 +38,7 @@
 
 	let updateModelId = null;
 	let updateProgress = null;
-	let updateModelsControllers = {};
+	let updateModelsControllers: Record<string, any> = {};
 	let updateCancelled = false;
 	let showExperimentalOllama = false;
 
@@ -56,7 +58,7 @@
 	let pullProgress = null;
 
 	let modelUploadMode = 'file';
-	let modelInputFile: File[] | null = null;
+	let modelInputFile: FileList | null = null;
 	let modelFileUrl = '';
 	let modelFileContent = `TEMPLATE """{{ .System }}\nUSER: {{ .Prompt }}\nASSISTANT: """\nPARAMETER num_ctx 4096\nPARAMETER stop "</s>"\nPARAMETER stop "USER:"\nPARAMETER stop "ASSISTANT:"`;
 	let modelFileDigest = '';
@@ -361,8 +363,10 @@
 		if (uploaded) {
 			const res = await createModel(
 				localStorage.token,
-				`${name}:latest`,
-				`FROM @${modelFileDigest}\n${modelFileContent}`
+				{
+					model: `${name}:latest`,
+					modelfile: `FROM @${modelFileDigest}\n${modelFileContent}`
+				}
 			);
 
 			if (res && res.ok) {
@@ -487,7 +491,7 @@
 	const createModelHandler = async () => {
 		createModelLoading = true;
 
-		let modelObject = {};
+		let modelObject: Record<string, any> = {};
 		// parse createModelObject
 		try {
 			modelObject = JSON.parse(createModelObject);
@@ -903,7 +907,7 @@
 
 					{#if createModelDigest !== ''}
 						<div class="flex flex-col mt-1">
-							<div class="font-medium mb-1">{createModelTag}</div>
+							<div class="font-medium mb-1">{createModelName}</div>
 							<div class="">
 								<div class="flex flex-row justify-between space-x-4 pr-2">
 									<div class=" flex-1">

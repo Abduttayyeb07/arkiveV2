@@ -34,6 +34,8 @@
 
 	import { goto } from '$app/navigation';
 	import { onMount, tick, getContext } from 'svelte';
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 
 	import { ARKIVE_BASE_URL } from '$lib/constants';
 	import { ARKIVE_NAME, config, user, models, settings } from '$lib/stores';
@@ -49,7 +51,7 @@
 	import Pencil from '$lib/components/icons/Pencil.svelte';
 	import PencilSquare from '$lib/components/icons/PencilSquare.svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	export let editor = null;
 
@@ -347,7 +349,7 @@ Based on the user's instruction, update and enhance the existing notes or select
 				content={$i18n.t(
 					'This feature is experimental and may be modified or discontinued without notice.'
 				)}
-				position="top"
+				placement="top"
 				className="inline-block"
 			>
 				<span class="text-gray-500 text-sm">({$i18n.t('Experimental')})</span>

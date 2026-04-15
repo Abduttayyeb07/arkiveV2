@@ -1,9 +1,18 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { toast } from 'svelte-sonner';
 	import fileSaver from 'file-saver';
 	const { saveAs } = fileSaver;
 
-	import { ARKIVE_NAME, config, functions as _functions, models, settings, user } from '$lib/stores';
+	import {
+		ARKIVE_NAME,
+		config,
+		functions as _functions,
+		models,
+		settings,
+		user
+	} from '$lib/stores';
 	import { onMount, getContext, tick, onDestroy } from 'svelte';
 
 	import { goto } from '$app/navigation';
@@ -19,7 +28,6 @@
 		toggleGlobalById
 	} from '$lib/apis/functions';
 
-	import Download from '../icons/Download.svelte';
 	import Tooltip from '../common/Tooltip.svelte';
 	import ConfirmDialog from '../common/ConfirmDialog.svelte';
 	import { getModels } from '$lib/apis';
@@ -42,7 +50,7 @@
 	import { capitalizeFirstLetter } from '$lib/utils';
 	import Spinner from '../common/Spinner.svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	let shiftKey = false;
 
@@ -54,7 +62,6 @@
 
 	let query = '';
 	let searchDebounceTimer: ReturnType<typeof setTimeout>;
-	let selectedTag = '';
 	let selectedType = '';
 
 	let showImportModal = false;
@@ -123,7 +130,6 @@
 		};
 
 		window.addEventListener('message', messageHandler, false);
-		console.log(item);
 	};
 
 	const cloneHandler = async (func) => {
@@ -185,13 +191,17 @@
 
 		if (res) {
 			if (func.is_global) {
-				func.type === 'filter'
-					? toast.success($i18n.t('Filter is now globally enabled'))
-					: toast.success($i18n.t('Function is now globally enabled'));
+				if (func.type === 'filter') {
+					toast.success($i18n.t('Filter is now globally enabled'));
+				} else {
+					toast.success($i18n.t('Function is now globally enabled'));
+				}
 			} else {
-				func.type === 'filter'
-					? toast.success($i18n.t('Filter is now globally disabled'))
-					: toast.success($i18n.t('Function is now globally disabled'));
+				if (func.type === 'filter') {
+					toast.success($i18n.t('Filter is now globally disabled'));
+				} else {
+					toast.success($i18n.t('Function is now globally disabled'));
+				}
 			}
 
 			_functions.set(await getFunctions(localStorage.token));
@@ -206,15 +216,19 @@
 		}
 	};
 
-	onMount(async () => {
+	onMount(() => {
 		viewOption = localStorage?.workspaceViewOption || '';
-		functions = await getFunctionList(localStorage.token).catch((error) => {
-			toast.error(`${error}`);
-			return [];
-		});
 
-		await tick();
-		loaded = true;
+		getFunctionList(localStorage.token)
+			.catch((error) => {
+				toast.error(`${error}`);
+				return [];
+			})
+			.then(async (result) => {
+				functions = result;
+				await tick();
+				loaded = true;
+			});
 
 		const onKeyDown = (event) => {
 			if (event.key === 'Shift') {
@@ -279,7 +293,6 @@
 					accept=".json"
 					hidden
 					on:change={() => {
-						console.log(importFiles);
 						showConfirm = true;
 					}}
 				/>
@@ -370,6 +383,7 @@
 						<div class="self-center pl-1.5 translate-y-[0.5px] rounded-l-xl bg-transparent">
 							<button
 								class="p-0.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-900 transition"
+								aria-label={$i18n.t('Clear search')}
 								on:click={() => {
 									query = '';
 								}}
@@ -472,6 +486,7 @@
 										<button
 											class="self-center w-fit text-sm px-2 py-2 dark:text-gray-300 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 rounded-xl"
 											type="button"
+											aria-label={$i18n.t('Delete function')}
 											on:click={() => {
 												deleteHandler(func);
 											}}
@@ -485,6 +500,7 @@
 											<button
 												class="self-center w-fit text-sm px-2 py-2 dark:text-gray-300 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 rounded-xl"
 												type="button"
+												aria-label={$i18n.t('Open support information')}
 												on:click={() => {
 													selectedFunction = func;
 													showManifestModal = true;
@@ -499,6 +515,7 @@
 										<button
 											class="self-center w-fit text-sm px-2 py-2 dark:text-gray-300 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 rounded-xl"
 											type="button"
+											aria-label={$i18n.t('Open valves')}
 											on:click={() => {
 												selectedFunction = func;
 												showValvesModal = true;
@@ -554,6 +571,7 @@
 										<button
 											class="self-center w-fit text-sm p-1.5 dark:text-gray-300 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 rounded-xl"
 											type="button"
+											aria-label={$i18n.t('Open function menu')}
 										>
 											<EllipsisHorizontal className="size-5" />
 										</button>
@@ -564,7 +582,7 @@
 									<Tooltip content={func.is_active ? $i18n.t('Enabled') : $i18n.t('Disabled')}>
 										<Switch
 											bind:state={func.is_active}
-											on:change={async (e) => {
+											on:change={async () => {
 												toggleFunctionById(localStorage.token, func.id);
 												models.set(
 													await getModels(
@@ -665,8 +683,7 @@
 		on:confirm={() => {
 			const reader = new FileReader();
 			reader.onload = async (event) => {
-				const _functions = JSON.parse(event.target.result);
-				console.log(_functions);
+				const _functions = JSON.parse(event.target.result as string);
 
 				for (let func of _functions) {
 					if ('function' in func) {
@@ -674,7 +691,7 @@
 						func = func.function;
 					}
 
-					const res = await createNewFunction(localStorage.token, func).catch((error) => {
+					await createNewFunction(localStorage.token, func).catch((error) => {
 						toast.error(`${error}`);
 						return null;
 					});

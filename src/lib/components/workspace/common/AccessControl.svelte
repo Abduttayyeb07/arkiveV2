@@ -1,14 +1,15 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { getContext, onMount } from 'svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
-	import { getGroups, getGroupById, getGroupInfoById } from '$lib/apis/groups';
+	import { getGroups, getGroupInfoById } from '$lib/apis/groups';
 	import { getUserInfoById } from '$lib/apis/users';
 	import { ARKIVE_API_BASE_URL } from '$lib/constants';
 	import XMark from '$lib/components/icons/XMark.svelte';
 	import Badge from '$lib/components/common/Badge.svelte';
-	import GlobeAlt from '$lib/components/icons/GlobeAlt.svelte';
 	import Plus from '$lib/components/icons/Plus.svelte';
 	import AddAccessModal from './AddAccessModal.svelte';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
@@ -26,7 +27,7 @@
 		write: { group_ids: string[]; user_ids: string[] };
 	};
 
-	export let onChange: Function = () => {};
+	export let onChange: (grants: AccessGrant[]) => void = () => {};
 
 	export let accessRoles = ['read'];
 	export let accessGrants: AccessGrant[] | any = [];
@@ -36,12 +37,19 @@
 	export let sharePublic = true;
 	export let shareUsers = true;
 
-	let groups: any[] = [];
+	let groups: Array<{ id: string; name: string; member_count?: number }> = [];
 	const resolvingGroupIds = new Set<string>();
-	let userById: Record<string, any> = {};
+	let userById: Record<string, { id: string; name?: string; email?: string }> = {};
 	const resolvingUserIds = new Set<string>();
 
 	let showAddAccessModal = false;
+	let readGroupIds: string[] = [];
+	let writeGroupIds: string[] = [];
+	let readUserIds: string[] = [];
+	let writeUserIds: string[] = [];
+	let selectedUserIds: string[] = [];
+	let selectedUsers: Array<{ id: string; name?: string; email?: string }> = [];
+	let accessGroups: Array<{ id: string; name: string; member_count?: number }> = [];
 
 	const dedupeAccessGrants = (grants: AccessGrant[] | null | undefined): AccessGrant[] => {
 		if (!Array.isArray(grants)) return [];
@@ -371,12 +379,26 @@
 	$: if (readGroupIds.length > 0 || writeGroupIds.length > 0) {
 		void ensureGroupsByIds([...readGroupIds, ...writeGroupIds]);
 	}
-	$: readGroupIds = (accessGrants, getPrincipalIdsByPermission('group', 'read'));
-	$: writeGroupIds = (accessGrants, getPrincipalIdsByPermission('group', 'write'));
-	$: readUserIds =
-		(accessGrants, getPrincipalIdsByPermission('user', 'read').filter((id) => id !== '*'));
-	$: writeUserIds =
-		(accessGrants, getPrincipalIdsByPermission('user', 'write').filter((id) => id !== '*'));
+
+	$: {
+		accessGrants;
+		readGroupIds = getPrincipalIdsByPermission('group', 'read');
+	}
+
+	$: {
+		accessGrants;
+		writeGroupIds = getPrincipalIdsByPermission('group', 'write');
+	}
+
+	$: {
+		accessGrants;
+		readUserIds = getPrincipalIdsByPermission('user', 'read').filter((id) => id !== '*');
+	}
+
+	$: {
+		accessGrants;
+		writeUserIds = getPrincipalIdsByPermission('user', 'write').filter((id) => id !== '*');
+	}
 
 	$: selectedUserIds = Array.from(new Set([...readUserIds, ...writeUserIds]));
 
@@ -418,27 +440,14 @@
 	}
 
 	onMount(async () => {
-		console.log('AccessControl mounted', { accessGrants, accessControl });
 		const res = await getGroups(localStorage.token, true).catch((error) => {
 			console.error(error);
 			return [];
 		});
 
-		console.log('getGroups res', res);
-
 		groups = [...groups, ...res].filter(
 			(g, index, self) => index === self.findIndex((t) => t.id === g.id)
 		);
-	});
-
-	$: console.log('AccessControl state', {
-		accessGrants,
-		readGroupIds,
-		writeGroupIds,
-		selectedUserIds,
-		groups,
-		accessGroups,
-		selectedUsers
 	});
 </script>
 

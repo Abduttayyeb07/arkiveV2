@@ -221,7 +221,7 @@ select {
 	color: #b4b4b4;
 }
 
-:global(.dark) .shimmer {
+.dark .shimmer {
 	background: linear-gradient(
 		110deg,
 		#586171 0%,
@@ -376,7 +376,7 @@ input[type='number'] {
 }
 
 .bg-gray-950-90 {
-	background-color: rgba(var(--color-gray-950, #0d0d0d), 0.9);
+	background-color: rgb(13 13 13 / 0.9);
 }
 
 .ProseMirror {
@@ -749,19 +749,23 @@ body {
 }
 
 @keyframes aurora-drift {
-	0%   { transform: translate(0, 0) scale(1); }
-	33%  { transform: translate(3%, -2%) scale(1.02); }
-	66%  { transform: translate(-2%, 3%) scale(0.98); }
-	100% { transform: translate(1%, -1%) scale(1.01); }
+	0% {
+		transform: translate(0, 0) scale(1);
+	}
+	33% {
+		transform: translate(3%, -2%) scale(1.02);
+	}
+	66% {
+		transform: translate(-2%, 3%) scale(0.98);
+	}
+	100% {
+		transform: translate(1%, -1%) scale(1.01);
+	}
 }
 
 /* ── Arkive Glass Panel ── */
 .arkive-glass {
-	background: linear-gradient(
-		135deg,
-		rgba(31, 28, 40, 0.72) 0%,
-		rgba(17, 17, 23, 0.85) 100%
-	);
+	background: linear-gradient(135deg, rgba(31, 28, 40, 0.72) 0%, rgba(17, 17, 23, 0.85) 100%);
 	backdrop-filter: blur(24px);
 	-webkit-backdrop-filter: blur(24px);
 	border: 1px solid rgba(163, 180, 214, 0.12);
@@ -772,10 +776,7 @@ body {
 
 /* ── Arkive Prism Text (animated gradient) ── */
 .arkive-prism-text {
-	background: linear-gradient(
-		90deg,
-		#ff92b1, #ffb79c, #ffd392, #8cf0c9, #95dcff, #a3b4d6, #b39cff
-	);
+	background: linear-gradient(90deg, #ff92b1, #ffb79c, #ffd392, #8cf0c9, #95dcff, #a3b4d6, #b39cff);
 	background-size: 200% 100%;
 	-webkit-background-clip: text;
 	background-clip: text;
@@ -784,8 +785,12 @@ body {
 }
 
 @keyframes prism-shift {
-	0%   { background-position: 0% 50%; }
-	100% { background-position: 100% 50%; }
+	0% {
+		background-position: 0% 50%;
+	}
+	100% {
+		background-position: 100% 50%;
+	}
 }
 
 /* ── Arkive Prism Ring (gradient border glow) ── */
@@ -799,8 +804,12 @@ body {
 	border-radius: inherit;
 	padding: 1px;
 	background: linear-gradient(135deg, #ff92b1, #ffb79c, #95dcff, #b39cff);
-	-webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-	mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+	-webkit-mask:
+		linear-gradient(#fff 0 0) content-box,
+		linear-gradient(#fff 0 0);
+	mask:
+		linear-gradient(#fff 0 0) content-box,
+		linear-gradient(#fff 0 0);
 	-webkit-mask-composite: xor;
 	mask-composite: exclude;
 	pointer-events: none;

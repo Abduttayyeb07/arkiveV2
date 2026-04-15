@@ -1,10 +1,12 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
 	import { skills } from '$lib/stores';
 	import { onMount, getContext } from 'svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	import { getSkillById, getSkills, updateSkillById } from '$lib/apis/skills';
 	import { page } from '$app/stores';
@@ -46,7 +48,7 @@
 			});
 
 			if (_skill) {
-				disabled = !_skill.write_access ?? true;
+				disabled = !(_skill.write_access ?? true);
 				skill = {
 					id: _skill.id,
 					name: _skill.name,

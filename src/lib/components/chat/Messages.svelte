@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { v4 as uuidv4 } from 'uuid';
 	import {
 		chats,
@@ -22,7 +24,7 @@
 
 	import ChatPlaceholder from './ChatPlaceholder.svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	export let className = 'h-full flex pt-8';
 
@@ -30,22 +32,17 @@
 	export let user = $_user;
 
 	export let prompt;
-	export let history = {};
+	export let history: Record<string, any> = {};
 	export let selectedModels;
 	export let atSelectedModel;
 
 	let messages = [];
 
-	export let setInputText: Function = () => {};
-
 	export let sendMessage: Function;
-	export let continueResponse: Function;
-	export let regenerateResponse: Function;
 	export let mergeResponses: Function;
 
 	export let chatActionHandler: Function;
 	export let showMessage: Function = () => {};
-	export let submitMessage: Function = () => {};
 	export let addMessages: Function = () => {};
 
 	export let readOnly = false;
@@ -473,19 +470,13 @@
 								messageId={message.id}
 								idx={messageIdx}
 								{user}
-								{setInputText}
 								{gotoMessage}
 								{showPreviousMessage}
 								{showNextMessage}
 								{updateChat}
 								{editMessage}
 								{deleteMessage}
-								{rateMessage}
-								{actionMessage}
 								{saveMessage}
-								{submitMessage}
-								{regenerateResponse}
-								{continueResponse}
 								{mergeResponses}
 								{addMessages}
 								{triggerScroll}

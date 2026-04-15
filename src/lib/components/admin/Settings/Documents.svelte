@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { toast } from 'svelte-sonner';
 
 	import { onMount, getContext, createEventDispatcher } from 'svelte';
@@ -29,7 +31,7 @@
 	import Textarea from '$lib/components/common/Textarea.svelte';
 	import Spinner from '$lib/components/common/Spinner.svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	let updateEmbeddingModelLoading = false;
 	let updateRerankingModelLoading = false;
@@ -881,13 +883,13 @@
 										bind:value={RAG_EMBEDDING_ENGINE}
 										placeholder={$i18n.t('Select an embedding model engine')}
 										on:change={(e) => {
-											if (e.target.value === 'ollama') {
+											if ((e.target as HTMLInputElement).value === 'ollama') {
 												RAG_EMBEDDING_MODEL = '';
-											} else if (e.target.value === 'openai') {
+											} else if ((e.target as HTMLInputElement).value === 'openai') {
 												RAG_EMBEDDING_MODEL = 'text-embedding-3-small';
-											} else if (e.target.value === 'azure_openai') {
+											} else if ((e.target as HTMLInputElement).value === 'azure_openai') {
 												RAG_EMBEDDING_MODEL = 'text-embedding-3-small';
-											} else if (e.target.value === '') {
+											} else if ((e.target as HTMLInputElement).value === '') {
 												RAG_EMBEDDING_MODEL = 'sentence-transformers/all-MiniLM-L6-v2';
 											}
 										}}
@@ -1135,9 +1137,9 @@
 												bind:value={RAGConfig.RAG_RERANKING_ENGINE}
 												placeholder={$i18n.t('Select a reranking model engine')}
 												on:change={(e) => {
-													if (e.target.value === 'external') {
+													if ((e.target as HTMLInputElement).value === 'external') {
 														RAGConfig.RAG_RERANKING_MODEL = '';
-													} else if (e.target.value === '') {
+													} else if ((e.target as HTMLInputElement).value === '') {
 														RAGConfig.RAG_RERANKING_MODEL = 'BAAI/bge-reranker-v2-m3';
 													}
 												}}

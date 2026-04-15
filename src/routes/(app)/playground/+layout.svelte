@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { onMount, getContext } from 'svelte';
-	import { ARKIVE_NAME, showSidebar, functions, mobile } from '$lib/stores';
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
+	import { getContext } from 'svelte';
+	import { ARKIVE_NAME, showSidebar, mobile } from '$lib/stores';
 	import { page } from '$app/stores';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import Sidebar from '$lib/components/icons/Sidebar.svelte';
 
-	const i18n = getContext('i18n');
-
-	onMount(async () => {});
+	const i18n = getContext<Writable<i18nType>>('i18n');
 </script>
 
 <svelte:head>

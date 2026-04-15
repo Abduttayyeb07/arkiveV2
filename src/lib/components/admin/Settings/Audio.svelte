@@ -57,17 +57,14 @@
 	let STT_WHISPER_MODEL_LOADING = false;
 
 	// eslint-disable-next-line no-undef
-	let voices: SpeechSynthesisVoice[] = [];
+	let voices: any[] = [];
 	let models: Awaited<ReturnType<typeof _getModels>>['models'] = [];
 
 	const getModels = async () => {
 		if (TTS_ENGINE === '') {
 			models = [];
 		} else {
-			const res = await _getModels(
-				localStorage.token,
-				$config?.features?.enable_direct_connections && ($settings?.directConnections ?? null)
-			).catch((e) => {
+			const res = await _getModels(localStorage.token).catch((e) => {
 				toast.error(`${e}`);
 			});
 
@@ -103,7 +100,7 @@
 	};
 
 	const updateConfigHandler = async () => {
-		let openaiParams = {};
+		let openaiParams: Record<string, any> = {};
 		try {
 			openaiParams = TTS_OPENAI_PARAMS ? JSON.parse(TTS_OPENAI_PARAMS) : {};
 			TTS_OPENAI_PARAMS = JSON.stringify(openaiParams, null, 2);
@@ -514,7 +511,7 @@
 								await getVoices();
 								await getModels();
 
-								if (e.target?.value === 'openai') {
+								if ((e.target as HTMLSelectElement)?.value === 'openai') {
 									TTS_VOICE = 'alloy';
 									TTS_MODEL = 'tts-1';
 								} else {

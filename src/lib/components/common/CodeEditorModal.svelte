@@ -1,23 +1,33 @@
 <script lang="ts">
-	import { onMount, getContext } from 'svelte';
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
+	import { getContext } from 'svelte';
 
 	import CodeEditor from './CodeEditor.svelte';
 	import Drawer from './Drawer.svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	let {
 		show = $bindable(),
 		value = $bindable(),
 		lang = 'python',
-		onChange = () => {},
-		onSave = () => {}
+		onChange: onChangeProp = () => {},
+		onSave: onSaveProp = () => {}
 	} = $props();
 
 	let boilerplate = ``;
 
 	let codeEditor = $state(null);
 	let _content = $state(value);
+
+	const onChange = (nextValue: string) => {
+		onChangeProp(nextValue);
+	};
+
+	const onSave = () => {
+		onSaveProp();
+	};
 
 	$effect(() => {
 		if (_content) {

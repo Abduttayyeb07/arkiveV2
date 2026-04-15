@@ -635,7 +635,11 @@ export const updateJWTExpiresDuration = async (token: string, duration: string) 
 	return res;
 };
 
-export const createAPIKey = async (token: string) => {
+export const createAPIKey = async (
+	token: string,
+	scope: string = 'full_access',
+	expiresInDays: number | null = null
+) => {
 	let error = null;
 
 	const res = await fetch(`${ARKIVE_API_BASE_URL}/auths/api_key`, {
@@ -643,7 +647,8 @@ export const createAPIKey = async (token: string) => {
 		headers: {
 			'Content-Type': 'application/json',
 			Authorization: `Bearer ${token}`
-		}
+		},
+		body: JSON.stringify({ scope, expires_in_days: expiresInDays })
 	})
 		.then(async (res) => {
 			if (!res.ok) throw await res.json();
@@ -657,7 +662,7 @@ export const createAPIKey = async (token: string) => {
 	if (error) {
 		throw error;
 	}
-	return res.api_key;
+	return res;
 };
 
 export const getAPIKey = async (token: string) => {
@@ -682,7 +687,7 @@ export const getAPIKey = async (token: string) => {
 	if (error) {
 		throw error;
 	}
-	return res.api_key;
+	return res;
 };
 
 export const deleteAPIKey = async (token: string) => {

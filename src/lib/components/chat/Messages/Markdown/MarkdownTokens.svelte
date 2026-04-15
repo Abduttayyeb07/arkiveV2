@@ -1,7 +1,9 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { decode } from 'html-entities';
 	import { onMount, getContext } from 'svelte';
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	import fileSaver from 'file-saver';
 	const { saveAs } = fileSaver;
@@ -29,8 +31,8 @@
 	export let id: string;
 	export let tokens: Token[];
 	export let top = true;
-	export let attributes = {};
-	export let sourceIds = [];
+	export let attributes: Record<string, any> = {};
+	export let sourceIds: string[] = [];
 
 	export let done = true;
 
@@ -42,12 +44,23 @@
 	export let editCodeBlock = true;
 	export let topPadding = false;
 
-	export let onSave: Function = () => {};
-	export let onUpdate: Function = () => {};
-	export let onPreview: Function = () => {};
+	export let onSave: (payload: {
+		raw: string;
+		oldContent: string;
+		newContent: string;
+	}) => void = () => {};
+	export let onUpdate: (payload: unknown) => void = () => {};
+	export let onPreview: (payload: string) => void = () => {};
 
-	export let onTaskClick: Function = () => {};
-	export let onSourceClick: Function = () => {};
+	export let onTaskClick: (payload: {
+		id: string;
+		token: Token;
+		tokenIdx: number;
+		item: unknown;
+		itemIdx: number;
+		checked: boolean;
+	}) => void = () => {};
+	export let onSourceClick: (event?: MouseEvent) => void = () => {};
 
 	const headerComponent = (depth: number) => {
 		return 'h' + depth;
@@ -298,7 +311,7 @@
 										tokenIdx: tokenIdx,
 										item: item,
 										itemIdx: itemIdx,
-										checked: e.target.checked
+										checked: (e.currentTarget as HTMLInputElement).checked
 									});
 								}}
 							/>
@@ -333,7 +346,7 @@
 										tokenIdx: tokenIdx,
 										item: item,
 										itemIdx: itemIdx,
-										checked: e.target.checked
+										checked: (e.currentTarget as HTMLInputElement).checked
 									});
 								}}
 							/>
@@ -391,7 +404,6 @@
 							attributes={detailToken?.attributes}
 							messageDone={done}
 							className="w-full space-y-1"
-							dir="auto"
 						>
 							<div class="mb-1.5" slot="content">
 								<svelte:self
@@ -414,7 +426,6 @@
 							attributes={detailToken?.attributes}
 							messageDone={done}
 							className="w-full space-y-1"
-							dir="auto"
 						/>
 					{/if}
 				{/each}
@@ -438,7 +449,6 @@
 				attributes={token?.attributes}
 				messageDone={done}
 				className="w-full space-y-1"
-				dir="auto"
 			>
 				<div class=" mb-1.5" slot="content">
 					<svelte:self
@@ -461,11 +471,10 @@
 				attributes={token?.attributes}
 				messageDone={done}
 				className="w-full space-y-1"
-				dir="auto"
 			/>
 		{/if}
 	{:else if token.type === 'html'}
-		<HtmlToken {id} {token} {onSourceClick} />
+		<HtmlToken {id} {token} />
 	{:else if token.type === 'iframe'}
 		<iframe
 			src="{ARKIVE_BASE_URL}/api/v1/files/{token.fileId}/content"
@@ -473,9 +482,10 @@
 			width="100%"
 			frameborder="0"
 			on:load={(e) => {
+				const iframe = e.currentTarget as HTMLIFrameElement;
+
 				try {
-					e.currentTarget.style.height =
-						e.currentTarget.contentWindow.document.body.scrollHeight + 20 + 'px';
+					iframe.style.height = iframe.contentWindow?.document.body.scrollHeight + 20 + 'px';
 				} catch {}
 			}}
 		></iframe>

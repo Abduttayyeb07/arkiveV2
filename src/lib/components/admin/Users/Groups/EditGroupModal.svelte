@@ -1,7 +1,9 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { toast } from 'svelte-sonner';
 	import { getContext, onMount } from 'svelte';
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	import Spinner from '$lib/components/common/Spinner.svelte';
 	import Modal from '$lib/components/common/Modal.svelte';
@@ -14,14 +16,39 @@
 	import ConfirmDialog from '$lib/components/common/ConfirmDialog.svelte';
 	import XMark from '$lib/components/icons/XMark.svelte';
 
-	export let onSubmit: Function = () => {};
-	export let onDelete: Function = () => {};
+	type PermissionSet = typeof DEFAULT_PERMISSIONS;
+
+	type GroupForm = {
+		id?: string;
+		name: string;
+		description?: string;
+		data?: Record<string, unknown>;
+		permissions?: Partial<PermissionSet>;
+		member_count?: number;
+	};
+
+	const clonePermissions = (): PermissionSet => ({
+		workspace: { ...DEFAULT_PERMISSIONS.workspace },
+		sharing: { ...DEFAULT_PERMISSIONS.sharing },
+		access_grants: { ...DEFAULT_PERMISSIONS.access_grants },
+		chat: { ...DEFAULT_PERMISSIONS.chat },
+		features: { ...DEFAULT_PERMISSIONS.features },
+		settings: { ...DEFAULT_PERMISSIONS.settings }
+	});
+
+	export let onSubmit: (group: {
+		name: string;
+		description: string;
+		data: Record<string, unknown>;
+		permissions: PermissionSet;
+	}) => void | Promise<void> = async () => {};
+	export let onDelete: () => void | Promise<void> = async () => {};
 
 	export let show = false;
 	export let edit = false;
 
-	export let group = null;
-	export let defaultPermissions = {};
+	export let group: GroupForm | null = null;
+	export let defaultPermissions: PermissionSet = clonePermissions();
 
 	export let custom = true;
 
@@ -35,9 +62,9 @@
 
 	export let name = '';
 	export let description = '';
-	export let data = {};
+	export let data: Record<string, unknown> = {};
 
-	export let permissions = DEFAULT_PERMISSIONS;
+	export let permissions: PermissionSet = clonePermissions();
 
 	const submitHandler = async () => {
 		loading = true;
@@ -58,16 +85,19 @@
 	const init = () => {
 		if (group) {
 			name = group.name;
-			description = group.description;
+			description = group.description ?? '';
 			const loadedPermissions = group?.permissions ?? {};
 			// Create fresh object from defaults, then overlay loaded values
 			permissions = {
-				workspace: { ...DEFAULT_PERMISSIONS.workspace, ...loadedPermissions.workspace },
-				sharing: { ...DEFAULT_PERMISSIONS.sharing, ...loadedPermissions.sharing },
-				access_grants: { ...DEFAULT_PERMISSIONS.access_grants, ...loadedPermissions.access_grants },
-				chat: { ...DEFAULT_PERMISSIONS.chat, ...loadedPermissions.chat },
-				features: { ...DEFAULT_PERMISSIONS.features, ...loadedPermissions.features },
-				settings: { ...DEFAULT_PERMISSIONS.settings, ...loadedPermissions.settings }
+				workspace: { ...DEFAULT_PERMISSIONS.workspace, ...(loadedPermissions.workspace ?? {}) },
+				sharing: { ...DEFAULT_PERMISSIONS.sharing, ...(loadedPermissions.sharing ?? {}) },
+				access_grants: {
+					...DEFAULT_PERMISSIONS.access_grants,
+					...(loadedPermissions.access_grants ?? {})
+				},
+				chat: { ...DEFAULT_PERMISSIONS.chat, ...(loadedPermissions.chat ?? {}) },
+				features: { ...DEFAULT_PERMISSIONS.features, ...(loadedPermissions.features ?? {}) },
+				settings: { ...DEFAULT_PERMISSIONS.settings, ...(loadedPermissions.settings ?? {}) }
 			};
 			data = group?.data ?? {};
 

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { marked } from 'marked';
 
 	import { toast } from 'svelte-sonner';
@@ -9,7 +11,7 @@
 
 	import { onMount, getContext, tick } from 'svelte';
 	import { goto } from '$app/navigation';
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	import { ARKIVE_NAME, config, mobile, models as _models, settings, user } from '$lib/stores';
 	import { ARKIVE_API_BASE_URL, ARKIVE_BASE_URL } from '$lib/constants';
@@ -37,7 +39,6 @@
 	import GarbageBin from '../icons/GarbageBin.svelte';
 	import Search from '../icons/Search.svelte';
 	import Plus from '../icons/Plus.svelte';
-	import ChevronRight from '../icons/ChevronRight.svelte';
 	import Switch from '../common/Switch.svelte';
 	import Spinner from '../common/Spinner.svelte';
 	import XMark from '../icons/XMark.svelte';
@@ -98,7 +99,7 @@
 			});
 
 			if (res) {
-				models = res.items;
+				models = (res.items ?? []).filter((m) => m?.owned_by !== 'arena' && !(m?.arena ?? false));
 				total = res.total;
 
 				// get tags
@@ -276,15 +277,15 @@
 		toast.success($i18n.t('All models are now hidden'));
 	};
 
-	onMount(async () => {
+	onMount(() => {
 		viewOption = localStorage.workspaceViewOption ?? '';
 		page = 1;
 
-		let groups = await getGroups(localStorage.token);
-		groupIds = groups.map((group) => group.id);
-
-		await tick();
-		loaded = true;
+		getGroups(localStorage.token).then(async (groups) => {
+			groupIds = groups.map((group) => group.id);
+			await tick();
+			loaded = true;
+		});
 
 		const onKeyDown = (event) => {
 			if (event.key === 'Shift') {
@@ -343,7 +344,7 @@
 				reader.onload = async (event) => {
 					let savedModels = [];
 					try {
-						savedModels = JSON.parse(event.target.result);
+						savedModels = JSON.parse(event.target.result as string);
 						console.log(savedModels);
 					} catch (e) {
 						toast.error($i18n.t('Invalid JSON file'));
@@ -602,7 +603,7 @@
 												alt="modelfile profile"
 												class=" rounded-2xl size-12 object-cover"
 												on:error={(e) => {
-													e.target.src = '/favicon.png';
+													(e.target as HTMLImageElement).src = '/favicon.png';
 												}}
 											/>
 										</div>
@@ -801,32 +802,6 @@
 		{/if}
 	</div>
 
-	{#if $config?.features.enable_community_sharing}
-		<div class=" my-16">
-			<div class=" text-xl font-medium mb-1 line-clamp-1">
-				{$i18n.t('Made by Arkive Community')}
-			</div>
-
-			<a
-				class=" flex cursor-pointer items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-850 w-full mb-2 px-3.5 py-1.5 rounded-xl transition"
-				href="https://github.com/Abduttayyeb07/ArkiveV2IA/models"
-				target="_blank"
-			>
-				<div class=" self-center">
-					<div class=" font-medium line-clamp-1">{$i18n.t('Discover a model')}</div>
-					<div class=" text-sm line-clamp-1">
-						{$i18n.t('Discover, download, and explore model presets')}
-					</div>
-				</div>
-
-				<div>
-					<div>
-						<ChevronRight />
-					</div>
-				</div>
-			</a>
-		</div>
-	{/if}
 {:else}
 	<div class="w-full h-full flex justify-center items-center">
 		<Spinner className="size-5" />

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import Switch from '$lib/components/common/Switch.svelte';
 	import Textarea from '$lib/components/common/Textarea.svelte';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
@@ -6,16 +8,20 @@
 	import XMark from '$lib/components/icons/XMark.svelte';
 	import Sortable from 'sortablejs';
 	import { getContext } from 'svelte';
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
-	export let banners = [];
+	export let banners: any[] = [];
 
-	let sortable = null;
-	let bannerListElement = null;
+	let sortable: Sortable | null = null;
+	let bannerListElement: HTMLDivElement | null = null;
 
 	const positionChangeHandler = () => {
+		if (!bannerListElement) {
+			return;
+		}
+
 		const bannerIdOrder = Array.from(bannerListElement.children).map((child) =>
-			child.id.replace('banner-item-', '')
+			(child as HTMLElement).id.replace('banner-item-', '')
 		);
 
 		// Sort the banners array based on the new order
@@ -45,7 +51,7 @@
 			sortable = new Sortable(bannerListElement, {
 				animation: 150,
 				handle: '.item-handle',
-				onUpdate: async (event) => {
+				onUpdate: async () => {
 					positionChangeHandler();
 				}
 			});

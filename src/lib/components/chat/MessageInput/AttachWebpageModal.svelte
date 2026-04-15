@@ -1,8 +1,10 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { toast } from 'svelte-sonner';
 
 	import { getContext } from 'svelte';
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 	import { settings } from '$lib/stores';
 
 	import Modal from '$lib/components/common/Modal.svelte';
@@ -69,7 +71,6 @@
 				<textarea
 					id="webpage-url"
 					class={`w-full flex-1 text-sm bg-transparent ${($settings?.highContrastMode ?? false) ? 'placeholder:text-gray-700 dark:placeholder:text-gray-100' : 'outline-hidden placeholder:text-gray-300 dark:placeholder:text-gray-700'}`}
-					type="text"
 					bind:value={url}
 					rows="3"
 					placeholder={'https://example.com'}

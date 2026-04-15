@@ -1,10 +1,9 @@
 <script lang="ts">
-	import DOMPurify from 'dompurify';
-	import { marked } from 'marked';
-
 	import { toast } from 'svelte-sonner';
 
 	import { onMount, getContext, tick } from 'svelte';
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 
@@ -17,23 +16,21 @@
 		updateUserTimezone
 	} from '$lib/apis/auths';
 
-	import { ARKIVE_API_BASE_URL, ARKIVE_BASE_URL } from '$lib/constants';
-	import { ARKIVE_NAME, config, user, socket } from '$lib/stores';
+	import { ARKIVE_BASE_URL } from '$lib/constants';
+	import { ARKIVE_NAME, config, user, socket, type SessionUser } from '$lib/stores';
 
-	import { generateInitialsImage, canvasPixelTest, getUserTimezone } from '$lib/utils';
+	import { generateInitialsImage, getUserTimezone } from '$lib/utils';
 
 	import Spinner from '$lib/components/common/Spinner.svelte';
-	import OnBoarding from '$lib/components/OnBoarding.svelte';
 	import SensitiveInput from '$lib/components/common/SensitiveInput.svelte';
-	import { redirect } from '@sveltejs/kit';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	let loaded = false;
 
 	let mode = $config?.features.enable_ldap ? 'ldap' : 'signin';
 
-	let form = null;
+	let form: string | null = null;
 
 	let name = '';
 	let email = '';
@@ -42,14 +39,17 @@
 
 	let ldapUsername = '';
 
-	const setSessionUser = async (sessionUser, redirectPath: string | null = null) => {
+	const setSessionUser = async (
+		sessionUser: SessionUser | null,
+		redirectPath: string | null = null
+	) => {
 		if (sessionUser) {
 			console.log(sessionUser);
 			toast.success($i18n.t(`You're now logged in.`));
 			if (sessionUser.token) {
 				localStorage.token = sessionUser.token;
 			}
-			$socket.emit('user-join', { auth: { token: sessionUser.token } });
+			$socket?.emit('user-join', { auth: { token: sessionUser.token } });
 			await user.set(sessionUser);
 			await config.set(await getBackendConfig());
 
@@ -115,7 +115,7 @@
 
 	const oauthCallbackHandler = async () => {
 		// Get the value of the 'token' cookie
-		function getCookie(name) {
+		function getCookie(name: string) {
 			const match = document.cookie.match(
 				new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()[\]\\/+^])/g, '\\$1') + '=([^;]*)')
 			);
@@ -140,11 +140,9 @@
 		await setSessionUser(sessionUser, localStorage.getItem('redirectPath') || null);
 	};
 
-	let onboarding = false;
-
 	async function setLogoImage() {
 		await tick();
-		const logo = document.getElementById('logo');
+		const logo = document.getElementById('logo') as HTMLImageElement | null;
 
 		if (logo) {
 			const isDarkMode = document.documentElement.classList.contains('dark');
@@ -188,8 +186,8 @@
 
 		if (($config?.features.auth_trusted_header ?? false) || $config?.features.auth === false) {
 			await signInHandler();
-		} else {
-			onboarding = $config?.onboarding ?? false;
+		} else if ($config?.onboarding ?? false) {
+			mode = $config?.features.enable_ldap ? 'ldap' : 'signup';
 		}
 	});
 </script>
@@ -200,25 +198,25 @@
 	</title>
 </svelte:head>
 
-<OnBoarding
-	bind:show={onboarding}
-	getStartedHandler={() => {
-		onboarding = false;
-		mode = $config?.features.enable_ldap ? 'ldap' : 'signup';
-	}}
-/>
-
 <div class="w-full h-screen max-h-[100dvh] text-white relative" id="auth-page">
-	<div class="w-full h-full absolute top-0 left-0 bg-white dark:bg-black"></div>
+	<!-- Arkive branded background: deep page color + subtle accent glows -->
+	<div class="w-full h-full absolute top-0 left-0 bg-gray-950"></div>
+	<div
+		class="w-full h-full absolute top-0 left-0 pointer-events-none opacity-60"
+		style="background:
+			radial-gradient(60% 50% at 20% 15%, rgba(59,105,192,0.22) 0%, transparent 60%),
+			radial-gradient(55% 45% at 85% 85%, rgba(179,156,255,0.18) 0%, transparent 60%),
+			radial-gradient(45% 40% at 50% 100%, rgba(149,220,255,0.14) 0%, transparent 60%);"
+	></div>
 
-	<div class="w-full absolute top-0 left-0 right-0 h-8 drag-region" />
+	<div class="w-full absolute top-0 left-0 right-0 h-8 drag-region"></div>
 
 	{#if loaded}
 		<div
-			class="fixed bg-transparent min-h-screen w-full flex justify-center font-primary z-50 text-black dark:text-white"
+			class="fixed bg-transparent min-h-screen w-full flex justify-center font-primary z-50 text-gray-100"
 			id="auth-container"
 		>
-			<div class="w-full px-10 min-h-screen flex flex-col text-center">
+			<div class="w-full px-6 min-h-screen flex flex-col text-center">
 				{#if ($config?.features.auth_trusted_header ?? false) || $config?.features.auth === false}
 					<div class=" my-auto pb-10 w-full sm:max-w-md">
 						<div
@@ -235,18 +233,18 @@
 					</div>
 				{:else}
 					<div class="my-auto flex flex-col justify-center items-center">
-						<div class=" sm:max-w-md my-auto pb-10 w-full dark:text-gray-100">
-							{#if $config?.metadata?.auth_logo_position === 'center'}
-								<div class="flex justify-center mb-6">
-									<img
-										id="logo"
-										crossorigin="anonymous"
-										src="{ARKIVE_BASE_URL}/static/favicon.png"
-										class="size-24 rounded-full"
-										alt="{$ARKIVE_NAME} logo"
-									/>
-								</div>
-							{/if}
+						<div
+							class="sm:max-w-md w-full my-auto pb-10 px-8 py-10 rounded-2xl bg-gray-850/80 border border-gray-700/60 shadow-2xl backdrop-blur-xl text-gray-100"
+						>
+							<div class="flex justify-center mb-5">
+								<img
+									id="logo"
+									crossorigin="anonymous"
+									src="{ARKIVE_BASE_URL}/static/favicon.png"
+									class="size-16 rounded-2xl"
+									alt="{$ARKIVE_NAME} logo"
+								/>
+							</div>
 							<form
 								class=" flex flex-col justify-center"
 								on:submit={(e) => {
@@ -254,21 +252,26 @@
 									submitHandler();
 								}}
 							>
-								<div class="mb-1">
-									<div class=" text-2xl font-medium">
+								<div class="mb-1 text-center">
+									<div class="text-2xl font-semibold text-gray-50">
 										{#if $config?.onboarding ?? false}
 											{$i18n.t(`Get started with {{ARKIVE_NAME}}`, { ARKIVE_NAME: $ARKIVE_NAME })}
 										{:else if mode === 'ldap'}
-											{$i18n.t(`Sign in to {{ARKIVE_NAME}} with LDAP`, { ARKIVE_NAME: $ARKIVE_NAME })}
+											{$i18n.t(`Sign in to {{ARKIVE_NAME}} with LDAP`, {
+												ARKIVE_NAME: $ARKIVE_NAME
+											})}
 										{:else if mode === 'signin'}
 											{$i18n.t(`Sign in to {{ARKIVE_NAME}}`, { ARKIVE_NAME: $ARKIVE_NAME })}
 										{:else}
 											{$i18n.t(`Sign up to {{ARKIVE_NAME}}`, { ARKIVE_NAME: $ARKIVE_NAME })}
 										{/if}
 									</div>
+									<div class="mt-1 text-xs text-gray-400">
+										{$i18n.t('Enterprise Intelligence Platform')}
+									</div>
 
 									{#if $config?.onboarding ?? false}
-										<div class="mt-1 text-xs font-medium text-gray-600 dark:text-gray-500">
+										<div class="mt-3 text-xs font-medium text-gray-400">
 											ⓘ {$ARKIVE_NAME}
 											{$i18n.t(
 												'does not make any external connections, and your data stays securely on your locally hosted server.'
@@ -280,15 +283,17 @@
 								{#if $config?.features.enable_login_form || $config?.features.enable_ldap || form}
 									<div class="flex flex-col mt-4">
 										{#if mode === 'signup'}
-											<div class="mb-2">
-												<label for="name" class="text-sm font-medium text-left mb-1 block"
+											<div class="mb-3">
+												<label
+													for="name"
+													class="text-xs font-medium text-left mb-1.5 block text-gray-300"
 													>{$i18n.t('Name')}</label
 												>
 												<input
 													bind:value={name}
 													type="text"
 													id="name"
-													class="my-0.5 w-full text-sm outline-hidden bg-transparent placeholder:text-gray-300 dark:placeholder:text-gray-600"
+													class="w-full text-sm bg-gray-900/70 border border-gray-700 focus:border-arkive-cyan focus:ring-2 focus:ring-arkive-cyan/20 rounded-lg px-3.5 py-2.5 outline-hidden placeholder:text-gray-500 transition"
 													autocomplete="name"
 													placeholder={$i18n.t('Enter Your Full Name')}
 													required
@@ -297,14 +302,16 @@
 										{/if}
 
 										{#if mode === 'ldap'}
-											<div class="mb-2">
-												<label for="username" class="text-sm font-medium text-left mb-1 block"
+											<div class="mb-3">
+												<label
+													for="username"
+													class="text-xs font-medium text-left mb-1.5 block text-gray-300"
 													>{$i18n.t('Username')}</label
 												>
 												<input
 													bind:value={ldapUsername}
 													type="text"
-													class="my-0.5 w-full text-sm outline-hidden bg-transparent placeholder:text-gray-300 dark:placeholder:text-gray-600"
+													class="w-full text-sm bg-gray-900/70 border border-gray-700 focus:border-arkive-cyan focus:ring-2 focus:ring-arkive-cyan/20 rounded-lg px-3.5 py-2.5 outline-hidden placeholder:text-gray-500 transition"
 													autocomplete="username"
 													name="username"
 													id="username"
@@ -313,15 +320,17 @@
 												/>
 											</div>
 										{:else}
-											<div class="mb-2">
-												<label for="email" class="text-sm font-medium text-left mb-1 block"
+											<div class="mb-3">
+												<label
+													for="email"
+													class="text-xs font-medium text-left mb-1.5 block text-gray-300"
 													>{$i18n.t('Email')}</label
 												>
 												<input
 													bind:value={email}
 													type="email"
 													id="email"
-													class="my-0.5 w-full text-sm outline-hidden bg-transparent placeholder:text-gray-300 dark:placeholder:text-gray-600"
+													class="w-full text-sm bg-gray-900/70 border border-gray-700 focus:border-arkive-cyan focus:ring-2 focus:ring-arkive-cyan/20 rounded-lg px-3.5 py-2.5 outline-hidden placeholder:text-gray-500 transition"
 													autocomplete="email"
 													name="email"
 													placeholder={$i18n.t('Enter Your Email')}
@@ -331,56 +340,59 @@
 										{/if}
 
 										<div>
-											<label for="password" class="text-sm font-medium text-left mb-1 block"
+											<label
+												for="password"
+												class="text-xs font-medium text-left mb-1.5 block text-gray-300"
 												>{$i18n.t('Password')}</label
 											>
 											<SensitiveInput
 												bind:value={password}
 												type="password"
 												id="password"
-												class="my-0.5 w-full text-sm outline-hidden bg-transparent placeholder:text-gray-300 dark:placeholder:text-gray-600"
+												outerClassName="flex flex-1 bg-gray-900/70 border border-gray-700 focus-within:border-arkive-cyan focus-within:ring-2 focus-within:ring-arkive-cyan/20 rounded-lg px-3.5 py-2.5 transition"
+												inputClassName="w-full text-sm bg-transparent outline-hidden placeholder:text-gray-500"
+												showButtonClassName="pl-2 text-gray-400 hover:text-arkive-cyan transition bg-transparent"
 												placeholder={$i18n.t('Enter Your Password')}
 												autocomplete={mode === 'signup' ? 'new-password' : 'current-password'}
-												name="password"
 												screenReader={true}
 												required
-												aria-required="true"
 											/>
 										</div>
 
 										{#if mode === 'signup' && $config?.features?.enable_signup_password_confirmation}
-											<div class="mt-2">
+											<div class="mt-3">
 												<label
 													for="confirm-password"
-													class="text-sm font-medium text-left mb-1 block"
+													class="text-xs font-medium text-left mb-1.5 block text-gray-300"
 													>{$i18n.t('Confirm Password')}</label
 												>
 												<SensitiveInput
 													bind:value={confirmPassword}
 													type="password"
 													id="confirm-password"
-													class="my-0.5 w-full text-sm outline-hidden bg-transparent"
+													outerClassName="flex flex-1 bg-gray-900/70 border border-gray-700 focus-within:border-arkive-cyan focus-within:ring-2 focus-within:ring-arkive-cyan/20 rounded-lg px-3.5 py-2.5 transition"
+													inputClassName="w-full text-sm bg-transparent outline-hidden placeholder:text-gray-500"
+													showButtonClassName="pl-2 text-gray-400 hover:text-arkive-cyan transition bg-transparent"
 													placeholder={$i18n.t('Confirm Your Password')}
 													autocomplete="new-password"
-													name="confirm-password"
 													required
 												/>
 											</div>
 										{/if}
 									</div>
 								{/if}
-								<div class="mt-5">
+								<div class="mt-6">
 									{#if $config?.features.enable_login_form || $config?.features.enable_ldap || form}
 										{#if mode === 'ldap'}
 											<button
-												class="bg-gray-700/5 hover:bg-gray-700/10 dark:bg-gray-100/5 dark:hover:bg-gray-100/10 dark:text-gray-300 dark:hover:text-white transition w-full rounded-full font-medium text-sm py-2.5"
+												class="bg-linear-to-r from-arkive-blue to-arkive-cyan hover:brightness-110 text-white shadow-lg shadow-arkive-blue/30 transition w-full rounded-lg font-semibold text-sm py-2.5"
 												type="submit"
 											>
 												{$i18n.t('Authenticate')}
 											</button>
 										{:else}
 											<button
-												class="bg-gray-700/5 hover:bg-gray-700/10 dark:bg-gray-100/5 dark:hover:bg-gray-100/10 dark:text-gray-300 dark:hover:text-white transition w-full rounded-full font-medium text-sm py-2.5"
+												class="bg-linear-to-r from-arkive-blue to-arkive-cyan hover:brightness-110 text-white shadow-lg shadow-arkive-blue/30 transition w-full rounded-lg font-semibold text-sm py-2.5"
 												type="submit"
 											>
 												{mode === 'signin'
@@ -391,13 +403,13 @@
 											</button>
 
 											{#if $config?.features.enable_signup && !($config?.onboarding ?? false)}
-												<div class=" mt-4 text-sm text-center">
+												<div class="mt-4 text-sm text-center text-gray-400">
 													{mode === 'signin'
 														? $i18n.t("Don't have an account?")
 														: $i18n.t('Already have an account?')}
 
 													<button
-														class=" font-medium underline"
+														class="font-medium text-arkive-cyan hover:text-arkive-purple transition ml-1"
 														type="button"
 														on:click={() => {
 															if (mode === 'signin') {
@@ -418,20 +430,19 @@
 
 							{#if Object.keys($config?.oauth?.providers ?? {}).length > 0}
 								<div class="inline-flex items-center justify-center w-full">
-									<hr class="w-32 h-px my-4 border-0 dark:bg-gray-100/10 bg-gray-700/10" />
+									<hr class="w-32 h-px my-5 border-0 bg-gray-700/60" />
 									{#if $config?.features.enable_login_form || $config?.features.enable_ldap || form}
-										<span
-											class="px-3 text-sm font-medium text-gray-900 dark:text-white bg-transparent"
+										<span class="px-3 text-xs font-medium text-gray-400 bg-transparent"
 											>{$i18n.t('or')}</span
 										>
 									{/if}
 
-									<hr class="w-32 h-px my-4 border-0 dark:bg-gray-100/10 bg-gray-700/10" />
+									<hr class="w-32 h-px my-5 border-0 bg-gray-700/60" />
 								</div>
 								<div class="flex flex-col space-y-2">
 									{#if $config?.oauth?.providers?.google}
 										<button
-											class="flex justify-center items-center bg-gray-700/5 hover:bg-gray-700/10 dark:bg-gray-100/5 dark:hover:bg-gray-100/10 dark:text-gray-300 dark:hover:text-white transition w-full rounded-full font-medium text-sm py-2.5"
+											class="flex justify-center items-center bg-gray-800/60 hover:bg-gray-700/80 border border-gray-700/60 hover:border-gray-600 text-gray-200 hover:text-white transition w-full rounded-lg font-medium text-sm py-2.5"
 											on:click={() => {
 												window.location.href = `${ARKIVE_BASE_URL}/oauth/google/login`;
 											}}
@@ -461,7 +472,7 @@
 									{/if}
 									{#if $config?.oauth?.providers?.microsoft}
 										<button
-											class="flex justify-center items-center bg-gray-700/5 hover:bg-gray-700/10 dark:bg-gray-100/5 dark:hover:bg-gray-100/10 dark:text-gray-300 dark:hover:text-white transition w-full rounded-full font-medium text-sm py-2.5"
+											class="flex justify-center items-center bg-gray-800/60 hover:bg-gray-700/80 border border-gray-700/60 hover:border-gray-600 text-gray-200 hover:text-white transition w-full rounded-lg font-medium text-sm py-2.5"
 											on:click={() => {
 												window.location.href = `${ARKIVE_BASE_URL}/oauth/microsoft/login`;
 											}}
@@ -492,7 +503,7 @@
 									{/if}
 									{#if $config?.oauth?.providers?.github}
 										<button
-											class="flex justify-center items-center bg-gray-700/5 hover:bg-gray-700/10 dark:bg-gray-100/5 dark:hover:bg-gray-100/10 dark:text-gray-300 dark:hover:text-white transition w-full rounded-full font-medium text-sm py-2.5"
+											class="flex justify-center items-center bg-gray-800/60 hover:bg-gray-700/80 border border-gray-700/60 hover:border-gray-600 text-gray-200 hover:text-white transition w-full rounded-lg font-medium text-sm py-2.5"
 											on:click={() => {
 												window.location.href = `${ARKIVE_BASE_URL}/oauth/github/login`;
 											}}
@@ -513,7 +524,7 @@
 									{/if}
 									{#if $config?.oauth?.providers?.oidc}
 										<button
-											class="flex justify-center items-center bg-gray-700/5 hover:bg-gray-700/10 dark:bg-gray-100/5 dark:hover:bg-gray-100/10 dark:text-gray-300 dark:hover:text-white transition w-full rounded-full font-medium text-sm py-2.5"
+											class="flex justify-center items-center bg-gray-800/60 hover:bg-gray-700/80 border border-gray-700/60 hover:border-gray-600 text-gray-200 hover:text-white transition w-full rounded-lg font-medium text-sm py-2.5"
 											on:click={() => {
 												window.location.href = `${ARKIVE_BASE_URL}/oauth/oidc/login`;
 											}}
@@ -543,7 +554,7 @@
 									{/if}
 									{#if $config?.oauth?.providers?.feishu}
 										<button
-											class="flex justify-center items-center bg-gray-700/5 hover:bg-gray-700/10 dark:bg-gray-100/5 dark:hover:bg-gray-100/10 dark:text-gray-300 dark:hover:text-white transition w-full rounded-full font-medium text-sm py-2.5"
+											class="flex justify-center items-center bg-gray-800/60 hover:bg-gray-700/80 border border-gray-700/60 hover:border-gray-600 text-gray-200 hover:text-white transition w-full rounded-lg font-medium text-sm py-2.5"
 											on:click={() => {
 												window.location.href = `${ARKIVE_BASE_URL}/oauth/feishu/login`;
 											}}
@@ -555,9 +566,9 @@
 							{/if}
 
 							{#if $config?.features.enable_ldap && $config?.features.enable_login_form}
-								<div class="mt-2">
+								<div class="mt-3">
 									<button
-										class="flex justify-center items-center text-xs w-full text-center underline"
+										class="flex justify-center items-center text-xs w-full text-center text-gray-400 hover:text-arkive-cyan transition"
 										type="button"
 										on:click={() => {
 											if (mode === 'ldap')
@@ -574,32 +585,9 @@
 								</div>
 							{/if}
 						</div>
-						{#if $config?.metadata?.login_footer}
-							<div class="max-w-3xl mx-auto">
-								<div class="mt-2 text-[0.7rem] text-gray-500 dark:text-gray-400 marked">
-									{@html DOMPurify.sanitize(marked($config?.metadata?.login_footer))}
-								</div>
-							</div>
-						{/if}
 					</div>
 				{/if}
 			</div>
 		</div>
-
-		{#if !$config?.metadata?.auth_logo_position}
-			<div class="fixed m-10 z-50">
-				<div class="flex space-x-2">
-					<div class=" self-center">
-						<img
-							id="logo"
-							crossorigin="anonymous"
-							src="{ARKIVE_BASE_URL}/static/favicon.png"
-							class=" w-6 rounded-full"
-							alt=""
-						/>
-					</div>
-				</div>
-			</div>
-		{/if}
 	{/if}
 </div>

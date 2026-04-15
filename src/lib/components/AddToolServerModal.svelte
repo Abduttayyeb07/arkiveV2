@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { v4 as uuidv4 } from 'uuid';
 
 	import fileSaver from 'file-saver';
@@ -6,7 +8,7 @@
 
 	import { toast } from 'svelte-sonner';
 	import { getContext, onMount } from 'svelte';
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	import { settings } from '$lib/stores';
 	import Modal from '$lib/components/common/Modal.svelte';
@@ -184,12 +186,12 @@
 	};
 
 	const importHandler = async (e) => {
-		const file = e.target.files[0];
+		const file = (e.target as HTMLInputElement).files[0];
 		if (!file) return;
 
 		const reader = new FileReader();
 		reader.onload = (event) => {
-			const json = event.target.result;
+			const json = event.target.result as string;
 			console.log('importHandler', json);
 
 			try {
@@ -621,12 +623,12 @@
 							<div class="flex flex-col w-full">
 								<div class="flex justify-between items-center">
 									<div class="flex gap-2 items-center">
-										<div
+										<label
 											for="select-bearer-or-session"
 											class={`text-xs ${($settings?.highContrastMode ?? false) ? 'text-gray-800 dark:text-gray-100' : 'text-gray-500'}`}
 										>
 											{$i18n.t('Auth')}
-										</div>
+										</label>
 									</div>
 
 									{#if ['oauth_2.1', 'oauth_2.1_static'].includes(auth_type)}
@@ -782,12 +784,12 @@
 									<div class="flex flex-col w-full">
 										<div class="flex justify-between items-center mb-0.5">
 											<div class="flex gap-2 items-center">
-												<div
+												<label
 													for="select-bearer-or-session"
 													class={`text-xs ${($settings?.highContrastMode ?? false) ? 'text-gray-800 dark:text-gray-100' : 'text-gray-500'}`}
 												>
 													{$i18n.t('OpenAPI Spec')}
-												</div>
+												</label>
 											</div>
 										</div>
 
@@ -831,7 +833,7 @@
 															autocomplete="off"
 															required
 															rows="5"
-														/>
+														></textarea>
 													</div>
 												{/if}
 											</div>
@@ -917,10 +919,11 @@
 								'MCP support is experimental and its specification changes often, which can lead to incompatibilities. OpenAPI specification support is directly maintained by the Arkive team, making it the more reliable option for compatibility.'
 							)}
 
-							<a
+							<button
 								class="font-medium underline"
-								href=""
-								target="_blank">{$i18n.t('Read more →')}</a
+								type="button"
+								on:click={() => {}}
+							>{$i18n.t('Read more →')}</button
 							>
 						</div>
 					{/if}

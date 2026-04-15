@@ -1,4 +1,7 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
+	import type { Banner as BannerData } from '$lib/types';
 	import { ARKIVE_API_BASE_URL, ARKIVE_BASE_URL } from '$lib/constants';
 	import { ARKIVE_NAME, config, user, showSidebar } from '$lib/stores';
 	import { goto } from '$app/navigation';
@@ -35,7 +38,7 @@
 	import Spinner from '$lib/components/common/Spinner.svelte';
 	import ProfilePreview from '$lib/components/channel/Messages/Message/ProfilePreview.svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	let page = 1;
 
@@ -54,6 +57,15 @@
 
 	let showUserChatsModal = false;
 	let showEditUserModal = false;
+
+	const licenseExceededBanner: BannerData = {
+		id: 'license-seats-exceeded',
+		type: 'error',
+		title: 'License Error',
+		content:
+			'Exceeded the number of seats in your license. Please contact support to increase the number of seats.',
+		timestamp: 0
+	};
 
 	const deleteUserHandler = async (id) => {
 		const res = await deleteUserById(localStorage.token, id).catch((error) => {
@@ -144,15 +156,7 @@
 
 {#if ($config?.license_metadata?.seats ?? null) !== null && total && total > $config?.license_metadata?.seats}
 	<div class=" mt-1 mb-2 text-xs text-red-500">
-		<Banner
-			className="mx-0"
-			banner={{
-				type: 'error',
-				title: 'License Error',
-				content:
-					'Exceeded the number of seats in your license. Please contact support to increase the number of seats.'
-			}}
-		/>
+		<Banner className="mx-0" banner={licenseExceededBanner} />
 	</div>
 {/if}
 
@@ -379,7 +383,7 @@
 										src={`${ARKIVE_API_BASE_URL}/users/${user.id}/profile/image`}
 										alt="user"
 										on:error={(e) => {
-											e.currentTarget.src = '/favicon.png';
+											(e.currentTarget as HTMLImageElement).src = '/favicon.png';
 										}}
 									/>
 								</ProfilePreview>

@@ -1,7 +1,9 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { toast } from 'svelte-sonner';
 	import { getContext, onDestroy, onMount, tick } from 'svelte';
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	import Modal from '$lib/components/common/Modal.svelte';
 	import SearchInput from './Sidebar/SearchInput.svelte';
@@ -13,11 +15,10 @@
 	import calendar from 'dayjs/plugin/calendar';
 	import Loader from '../common/Loader.svelte';
 	import { createMessagesList } from '$lib/utils';
-	import { config, user } from '$lib/stores';
+	import { user } from '$lib/stores';
 	import Messages from '../chat/Messages.svelte';
 	import { goto } from '$app/navigation';
 	import PencilSquare from '../icons/PencilSquare.svelte';
-	import PageEdit from '../icons/PageEdit.svelte';
 	dayjs.extend(calendar);
 	dayjs.extend(localizedFormat);
 
@@ -187,7 +188,7 @@
 		} else if (e.code === 'Enter') {
 			const item = document.querySelector(`[data-arrow-selected="true"]`);
 			if (item) {
-				item?.click();
+				(item as HTMLElement)?.click();
 				show = false;
 			}
 
@@ -229,20 +230,6 @@
 	onMount(() => {
 		actions = [
 			...actions,
-			...(($config?.features?.enable_notes ?? false) &&
-			($user?.role === 'admin' || ($user?.permissions?.features?.notes ?? true))
-				? [
-						{
-							label: $i18n.t('Create a new note'),
-							onClick: async () => {
-								await goto(`/notes?content=${query}`);
-								show = false;
-								onClose();
-							},
-							icon: PageEdit
-						}
-					]
-				: [])
 		];
 
 		document.addEventListener('keydown', onKeyDown);
@@ -274,7 +261,7 @@
 					if (e.code === 'Enter' && (chatList ?? []).length > 0) {
 						const item = document.querySelector(`[data-arrow-selected="true"]`);
 						if (item) {
-							item?.click();
+							(item as HTMLElement)?.click();
 						}
 
 						show = false;
@@ -310,7 +297,7 @@
 							? 'bg-gray-50 dark:bg-gray-850'
 							: ''}"
 						data-arrow-selected={selectedIdx === idx ? 'true' : undefined}
-						dragabble="false"
+						draggable="false"
 						on:mouseenter={() => {
 							selectedIdx = idx;
 						}}
@@ -444,11 +431,8 @@
 							readOnly={true}
 							{selectedModels}
 							bind:history
-							bind:messages
 							autoScroll={true}
 							sendMessage={() => {}}
-							continueResponse={() => {}}
-							regenerateResponse={() => {}}
 						/>
 					</div>
 				{/if}

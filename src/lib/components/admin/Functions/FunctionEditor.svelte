@@ -1,8 +1,10 @@
-<script>
+<script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { getContext, onMount, tick } from 'svelte';
 	import { goto } from '$app/navigation';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	import { nameToId } from '$lib/utils';
 	import CodeEditor from '$lib/components/common/CodeEditor.svelte';
@@ -15,7 +17,7 @@
 	let loading = false;
 	let showConfirm = false;
 
-	export let onSave = () => {};
+	export let onSave: (value: any) => void = () => {};
 
 	export let edit = false;
 	export let clone = false;

@@ -1,10 +1,12 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { getContext, onDestroy, onMount, tick } from 'svelte';
 	import { v4 as uuidv4 } from 'uuid';
 	import fileSaver from 'file-saver';
 	const { saveAs } = fileSaver;
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	import { marked } from 'marked';
 	import { toast } from 'svelte-sonner';
@@ -489,7 +491,7 @@ ${content}
 		return fileItem;
 	};
 
-	const compressImageHandler = async (imageUrl, settings = {}, config = {}) => {
+	const compressImageHandler = async (imageUrl, settings: Record<string, any> = {}, config: Record<string, any> = {}) => {
 		// Quick shortcut so we don’t do unnecessary work.
 		const settingsCompression = settings?.imageCompression ?? false;
 		const configWidth = config?.file?.image_compression?.width ?? null;
@@ -741,7 +743,7 @@ Provide the enhanced notes in markdown format. Use markdown syntax for headings,
 
 		// Check if the dragged item is a file or image
 		if (e.dataTransfer?.types?.includes('Files') && e.dataTransfer?.items) {
-			const items = Array.from(e.dataTransfer.items);
+			const items = Array.from(e.dataTransfer.items) as DataTransferItem[];
 			const hasFiles = items.some((item) => item.kind === 'file');
 			const hasImages = items.some((item) => item.type.startsWith('image/'));
 
@@ -801,7 +803,7 @@ Provide the enhanced notes in markdown format. Use markdown syntax for headings,
 
 		for (const file of files) {
 			if (file.type === 'image' || (file?.content_type ?? '').startsWith('image/')) {
-				const e = new CustomEvent('data', { files: files });
+				const e = new CustomEvent('data', { detail: { files } });
 
 				const img = document.getElementById(`image:${file.id}`);
 				if (img) {
@@ -1225,11 +1227,11 @@ Provide the enhanced notes in markdown format. Use markdown syntax for headings,
 							fileHandler={true}
 							onFileDrop={(currentEditor, files, pos) => {
 								files.forEach(async (file) => {
-									const fileItem = await inputFileHandler(file).catch((error) => {
+									const fileItem = (await inputFileHandler(file).catch((error) => {
 										return null;
-									});
+									})) as any;
 
-									if (fileItem.type === 'image') {
+									if (fileItem?.type === 'image') {
 										// If the file is an image, insert it directly
 										currentEditor
 											.chain()
@@ -1247,7 +1249,7 @@ Provide the enhanced notes in markdown format. Use markdown syntax for headings,
 							onFilePaste={() => {}}
 							on:paste={async (e) => {
 								e = e.detail.event || e;
-								const clipboardData = e.clipboardData || window.clipboardData;
+								const clipboardData = (e as unknown as ClipboardEvent).clipboardData || window.clipboardData;
 								console.log('Clipboard data:', clipboardData);
 
 								if (clipboardData && clipboardData.items) {
@@ -1256,7 +1258,7 @@ Provide the enhanced notes in markdown format. Use markdown syntax for headings,
 										console.log('Clipboard item:', item);
 										if (item.type.indexOf('image') !== -1) {
 											const blob = item.getAsFile();
-											const fileItem = await inputFileHandler(blob);
+											const fileItem = (await inputFileHandler(blob)) as any;
 
 											if (editor) {
 												editor
@@ -1381,7 +1383,7 @@ Provide the enhanced notes in markdown format. Use markdown syntax for headings,
 							input.click();
 
 							input.onchange = async (e) => {
-								const files = e.target.files;
+								const files = (e.target as HTMLInputElement).files;
 
 								if (files && files.length > 0) {
 									await uploadFileHandler(files[0]);
@@ -1412,7 +1414,6 @@ Provide the enhanced notes in markdown format. Use markdown syntax for headings,
 				bind:streaming
 				bind:stopResponseFlag
 				{editor}
-				{inputElement}
 				{selectedContent}
 				{files}
 				onInsert={insertHandler}

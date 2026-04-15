@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { onMount, getContext } from 'svelte';
 	import { models } from '$lib/stores';
 	import { getLeaderboard } from '$lib/apis/evaluations';
@@ -10,7 +12,7 @@
 	import ChevronDown from '$lib/components/icons/ChevronDown.svelte';
 	import { ARKIVE_API_BASE_URL } from '$lib/constants';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	let rankedModels = [];
 	let query = '';
@@ -45,7 +47,7 @@
 		loading = true;
 		try {
 			const result = await getLeaderboard(localStorage.token, searchQuery);
-			const statsMap = new Map((result?.entries ?? []).map((e) => [e.model_id, e]));
+			const statsMap = new Map<string, any>((result?.entries ?? []).map((e) => [e.model_id, e]));
 
 			rankedModels = $models
 				.filter((m) => m?.owned_by !== 'arena' && !m?.info?.meta?.hidden)
@@ -182,7 +184,7 @@
 									alt={model.name}
 									class="size-5 rounded-full object-cover shrink-0"
 									on:error={(e) => {
-										e.target.src = '/favicon.png';
+										(e.target as HTMLImageElement).src = '/favicon.png';
 									}}
 								/>
 								<Tooltip content={`${model.name} (${model.id})`} placement="top-start">

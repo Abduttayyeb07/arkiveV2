@@ -41,7 +41,6 @@
 
 	const handleKeyDown = (event: KeyboardEvent) => {
 		if (event.key === 'Escape' && isTopModal()) {
-			console.log('Escape');
 			show = false;
 		}
 	};
@@ -59,9 +58,14 @@
 		document.body.appendChild(modalElement);
 		focusTrap = FocusTrap.createFocusTrap(modalElement, {
 			allowOutsideClick: (e) => {
+				const target = e.target;
+				if (!(target instanceof Element)) {
+					return false;
+				}
+
 				return (
-					e.target.closest('[data-sonner-toast]') !== null ||
-					e.target.closest('.modal-content') === null
+					target.closest('[data-sonner-toast]') !== null ||
+					target.closest('.modal-content') === null
 				);
 			}
 		});
@@ -69,9 +73,11 @@
 		window.addEventListener('keydown', handleKeyDown);
 		document.body.style.overflow = 'hidden';
 	} else if (modalElement) {
-		focusTrap.deactivate();
+		focusTrap?.deactivate();
 		window.removeEventListener('keydown', handleKeyDown);
-		document.body.removeChild(modalElement);
+		if (modalElement.isConnected) {
+			document.body.removeChild(modalElement);
+		}
 		document.body.style.overflow = 'unset';
 	}
 
@@ -80,7 +86,7 @@
 		if (focusTrap) {
 			focusTrap.deactivate();
 		}
-		if (modalElement) {
+		if (modalElement?.isConnected) {
 			document.body.removeChild(modalElement);
 		}
 	});

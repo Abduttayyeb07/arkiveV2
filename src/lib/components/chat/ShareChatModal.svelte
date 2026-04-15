@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { getContext, onMount } from 'svelte';
 	import { models, config } from '$lib/stores';
 
@@ -14,7 +16,7 @@
 
 	let chat = null;
 	let shareUrl = null;
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	const shareLocalChat = async () => {
 		const _chat = chat;

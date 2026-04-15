@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { i18n as i18nType } from 'i18next';
 	import type { Writable } from 'svelte/store';
 	import { toast } from 'svelte-sonner';
 	import { getContext } from 'svelte';
@@ -6,7 +7,7 @@
 
 	import ChatsModal from './ChatsModal.svelte';
 
-	const i18n: Writable<any> = getContext('i18n');
+	const i18n: Writable<any> = getContext<Writable<i18nType>>('i18n');
 
 	export let show = false;
 	export let onUpdate = () => {};

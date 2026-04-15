@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { toast } from 'svelte-sonner';
 	import fileSaver from 'file-saver';
 	const { saveAs } = fileSaver;
@@ -36,7 +38,7 @@
 
 	let shiftKey = false;
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 	let promptsImportInputElement: HTMLInputElement;
 	let loaded = false;
 
@@ -173,7 +175,7 @@
 		getPromptList();
 	};
 
-	onMount(async () => {
+	onMount(() => {
 		viewOption = localStorage?.workspaceViewOption || '';
 		loaded = true;
 
@@ -243,7 +245,7 @@
 
 				const reader = new FileReader();
 				reader.onload = async (event) => {
-					const savedPrompts = JSON.parse(event.target.result);
+					const savedPrompts = JSON.parse(event.target.result as string);
 					console.log(savedPrompts);
 
 					try {

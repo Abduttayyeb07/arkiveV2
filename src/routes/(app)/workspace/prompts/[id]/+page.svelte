@@ -1,9 +1,11 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
 	import { onMount, getContext } from 'svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	import { getPromptById, updatePromptById } from '$lib/apis/prompts';
 	import { page } from '$app/stores';
@@ -47,7 +49,7 @@
 			});
 
 			if (_prompt) {
-				disabled = !_prompt.write_access ?? true;
+				disabled = !(_prompt.write_access ?? true);
 				prompt = {
 					id: _prompt.id,
 					name: _prompt.name,

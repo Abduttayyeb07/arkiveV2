@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import type { Token } from 'marked';
 	import { LinkPreview } from 'bits-ui';
 
@@ -6,17 +8,22 @@
 
 	import { goto } from '$app/navigation';
 	import { channels, models } from '$lib/stores';
-	import UserStatus from '$lib/components/channel/Messages/Message/UserStatus.svelte';
 	import UserStatusLinkPreview from '$lib/components/channel/Messages/Message/UserStatusLinkPreview.svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
-	export let token: Token;
+	type MentionToken = Token & {
+		id?: string;
+		triggerChar?: string;
+		label?: string;
+	};
+
+	export let token: MentionToken;
 
 	let triggerChar = '';
 	let label = '';
 
-	let idType = null;
+	let idType: string | null = null;
 	let id = '';
 
 	$: if (token) {

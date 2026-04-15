@@ -1,11 +1,13 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { getContext } from 'svelte';
 
 	import Dropdown from '$lib/components/common/Dropdown.svelte';
 	import Sparkles from '../icons/Sparkles.svelte';
 	import ChatBubbleOval from '../icons/ChatBubbleOval.svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	export let show = false;
 	export let className = 'max-w-[170px]';
@@ -13,7 +15,7 @@
 	export let onEdit = () => {};
 	export let onChat = () => {};
 
-	export let onChange = () => {};
+	export let onChange: (state: any) => void = () => {};
 </script>
 
 <Dropdown

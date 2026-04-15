@@ -1,8 +1,11 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
+	import type { SessionUser } from '$lib/stores';
 	import { toast } from 'svelte-sonner';
 	import dayjs from 'dayjs';
 	import { createEventDispatcher } from 'svelte';
-	import { onMount, getContext } from 'svelte';
+	import { getContext } from 'svelte';
 
 	import { goto } from '$app/navigation';
 
@@ -14,13 +17,29 @@
 	import SensitiveInput from '$lib/components/common/SensitiveInput.svelte';
 	import UserProfileImage from '$lib/components/chat/Settings/Account/UserProfileImage.svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 	const dispatch = createEventDispatcher();
 	dayjs.extend(localizedFormat);
 
+	type OAuthProvider = {
+		sub?: string;
+		[key: string]: unknown;
+	};
+
+	type EditableUser = {
+		id?: string;
+		profile_image_url: string;
+		role: string;
+		name: string;
+		email: string;
+		password: string;
+		oauth?: Record<string, OAuthProvider>;
+		created_at?: number;
+	};
+
 	export let show = false;
-	export let selectedUser;
-	export let sessionUser;
+	export let selectedUser: EditableUser | null = null;
+	export let sessionUser: SessionUser;
 
 	$: if (show) {
 		init();
@@ -28,13 +47,21 @@
 
 	const init = () => {
 		if (selectedUser) {
-			_user = selectedUser;
-			_user.password = '';
+			_user = {
+				id: selectedUser.id,
+				profile_image_url: selectedUser.profile_image_url ?? '',
+				role: selectedUser.role ?? 'pending',
+				name: selectedUser.name ?? '',
+				email: selectedUser.email ?? '',
+				password: '',
+				oauth: selectedUser.oauth,
+				created_at: selectedUser.created_at
+			};
 			loadUserGroups();
 		}
 	};
 
-	let _user = {
+	let _user: EditableUser = {
 		profile_image_url: '',
 		role: 'pending',
 		name: '',
@@ -42,9 +69,13 @@
 		password: ''
 	};
 
-	let userGroups: any[] | null = null;
+	let userGroups: Array<{ id: string; name: string }> | null = null;
 
 	const submitHandler = async () => {
+		if (!selectedUser?.id) {
+			return;
+		}
+
 		const res = await updateUserById(localStorage.token, selectedUser.id, _user).catch((error) => {
 			toast.error(`${error}`);
 		});
@@ -204,9 +235,9 @@
 
 										<div class="flex-1">
 											<SensitiveInput
-												class="w-full text-sm bg-transparent outline-hidden"
+												outerClassName="flex flex-1 bg-transparent"
+												inputClassName="w-full text-sm bg-transparent outline-hidden"
 												type="password"
-												aria-label={$i18n.t('New Password')}
 												placeholder={$i18n.t('Enter New Password')}
 												bind:value={_user.password}
 												autocomplete="new-password"

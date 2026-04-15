@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { getContext } from 'svelte';
 	import { toast } from 'svelte-sonner';
 
@@ -40,11 +42,12 @@
 	import Knobs from '../icons/Knobs.svelte';
 	import { ARKIVE_API_BASE_URL } from '$lib/constants';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	export let initNewChat: Function;
 	export let shareEnabled: boolean = false;
 	export let scrollTop = 0;
+	export const title: string = '';
 
 	export let chat;
 	export let history;

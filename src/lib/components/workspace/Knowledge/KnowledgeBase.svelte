@@ -1,11 +1,13 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import Fuse from 'fuse.js';
 	import { toast } from 'svelte-sonner';
 	import { v4 as uuidv4 } from 'uuid';
 	import { PaneGroup, Pane, PaneResizer } from 'paneforge';
 
 	import { onMount, getContext, onDestroy, tick } from 'svelte';
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
@@ -440,7 +442,7 @@
 			const input = document.createElement('input');
 			input.type = 'file';
 			input.webkitdirectory = true;
-			input.directory = true;
+			(input as any).directory = true;
 			input.multiple = true;
 			input.style.display = 'none';
 
@@ -485,7 +487,7 @@
 
 					// Clean up
 					document.body.removeChild(input);
-					resolve();
+					resolve(undefined);
 				} catch (error) {
 					reject(error);
 				}
@@ -822,7 +824,7 @@
 			const fileInputElement = document.getElementById('files-input');
 
 			if (fileInputElement) {
-				fileInputElement.value = '';
+				(fileInputElement as HTMLInputElement).value = '';
 			}
 		} else {
 			toast.error($i18n.t(`File not found.`));

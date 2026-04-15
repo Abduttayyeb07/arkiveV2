@@ -1,6 +1,8 @@
-<script>
+<script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { createEventDispatcher, getContext, onMount } from 'svelte';
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 	const dispatch = createEventDispatcher();
 
 	import Spinner from '$lib/components/common/Spinner.svelte';
@@ -164,7 +166,7 @@
 								hidden
 								accept="image/*"
 								on:change={(e) => {
-									const files = e.target.files ?? [];
+									const files = (e.target as HTMLInputElement).files ?? [];
 									let reader = new FileReader();
 									reader.onload = (event) => {
 										let originalImageUrl = `${event.target.result}`;
@@ -206,7 +208,7 @@
 											// Display the compressed image
 											profileImageUrl = compressedSrc;
 
-											e.target.files = null;
+											(e.target as HTMLInputElement).files = null;
 										};
 									};
 

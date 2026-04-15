@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { onMount, tick, getContext } from 'svelte';
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
+	import { tick, getContext } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 
@@ -17,17 +19,11 @@
 	import { toast } from 'svelte-sonner';
 	import localizedFormat from 'dayjs/plugin/localizedFormat';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 	dayjs.extend(localizedFormat);
 
 	let loaded = false;
-
 	let autoScroll = true;
-	let processing = '';
-	let messagesContainerElement: HTMLDivElement;
-
-	// let chatId = $page.params.id;
-	let showModelSelector = false;
 	let selectedModels = [''];
 
 	let chat = null;
@@ -68,7 +64,7 @@
 		if (userSettings) {
 			settings.set(userSettings.ui);
 		} else {
-			let localStorageSettings = {} as Parameters<(typeof settings)['set']>[0];
+			let localStorageSettings: Parameters<typeof settings.set>[0] = {};
 
 			try {
 				localStorageSettings = JSON.parse(localStorage.getItem('settings') ?? '{}');
@@ -86,7 +82,7 @@
 			)
 		);
 		await chatId.set($page.params.id);
-		chat = await getChatByShareId(localStorage.token, $chatId).catch(async (error) => {
+		chat = await getChatByShareId(localStorage.token, $chatId).catch(async () => {
 			await goto('/');
 			return null;
 		});
@@ -184,14 +180,10 @@
 							chatId={$chatId}
 							readOnly={true}
 							{selectedModels}
-							{processing}
 							bind:history
-							bind:messages
 							bind:autoScroll
 							bottomPadding={files.length > 0}
 							sendMessage={() => {}}
-							continueResponse={() => {}}
-							regenerateResponse={() => {}}
 						/>
 					</div>
 				</div>

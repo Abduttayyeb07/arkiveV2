@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { getContext, onMount } from 'svelte';
 	import { config, knowledge, settings, user } from '$lib/stores';
 
@@ -13,7 +15,7 @@
 	import { ARKIVE_API_BASE_URL } from '$lib/constants';
 
 	export let selectedItems = [];
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	let loaded = false;
 
@@ -170,10 +172,10 @@
 			<div class=" flex flex-wrap items-center gap-2 mb-2.5">
 				{#each selectedItems as file, fileIdx}
 					<FileItem
-						{file}
 						small={true}
 						item={file}
 						name={file.name}
+						size={file.size ?? 0}
 						modal={true}
 						edit={true}
 						loading={file.status === 'uploading'}

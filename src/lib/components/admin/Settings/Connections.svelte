@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { toast } from 'svelte-sonner';
 	import { createEventDispatcher, onMount, getContext, tick } from 'svelte';
 
@@ -20,7 +22,7 @@
 	import AddConnectionModal from '$lib/components/AddConnectionModal.svelte';
 	import OllamaConnection from './Connections/OllamaConnection.svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	const getModels = async () => {
 		const models = await _getModels(
@@ -34,18 +36,18 @@
 
 	// External
 	let OLLAMA_BASE_URLS = [''];
-	let OLLAMA_API_CONFIGS = {};
+	let OLLAMA_API_CONFIGS: Record<string, any> = {};
 
 	let OPENAI_API_KEYS = [''];
 	let OPENAI_API_BASE_URLS = [''];
-	let OPENAI_API_CONFIGS = {};
+	let OPENAI_API_CONFIGS: Record<string, any> = {};
 
 	let ENABLE_OPENAI_API: null | boolean = null;
 	let ENABLE_OLLAMA_API: null | boolean = null;
 
 	let connectionsConfig = null;
 
-	let pipelineUrls = {};
+	let pipelineUrls: Record<string, any> = {};
 	let showAddOpenAIConnectionModal = false;
 	let showAddOllamaConnectionModal = false;
 
@@ -138,8 +140,8 @@
 
 	onMount(async () => {
 		if ($user?.role === 'admin') {
-			let ollamaConfig = {};
-			let openaiConfig = {};
+			let ollamaConfig: Record<string, any> = {};
+			let openaiConfig: Record<string, any> = {};
 
 			await Promise.all([
 				(async () => {
@@ -274,7 +276,7 @@
 												);
 												OPENAI_API_KEYS = OPENAI_API_KEYS.filter((key, keyIdx) => idx !== keyIdx);
 
-												let newConfig = {};
+												let newConfig: Record<string, any> = {};
 												OPENAI_API_BASE_URLS.forEach((url, newIdx) => {
 													newConfig[newIdx] =
 														OPENAI_API_CONFIGS[newIdx < idx ? newIdx : newIdx + 1];
@@ -335,7 +337,7 @@
 											onDelete={() => {
 												OLLAMA_BASE_URLS = OLLAMA_BASE_URLS.filter((url, urlIdx) => idx !== urlIdx);
 
-												let newConfig = {};
+												let newConfig: Record<string, any> = {};
 												OLLAMA_BASE_URLS.forEach((url, newIdx) => {
 													newConfig[newIdx] =
 														OLLAMA_API_CONFIGS[newIdx < idx ? newIdx : newIdx + 1];

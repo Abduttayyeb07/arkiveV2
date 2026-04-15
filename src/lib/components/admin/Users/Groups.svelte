@@ -1,16 +1,11 @@
-<script>
+<script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { toast } from 'svelte-sonner';
-	import dayjs from 'dayjs';
-	import relativeTime from 'dayjs/plugin/relativeTime';
-	dayjs.extend(relativeTime);
-
 	import { onMount, getContext } from 'svelte';
 	import { goto } from '$app/navigation';
 
-	import { ARKIVE_NAME, config, user, showSidebar, knowledge } from '$lib/stores';
-	import { ARKIVE_BASE_URL } from '$lib/constants';
-
-	import Tooltip from '$lib/components/common/Tooltip.svelte';
+	import { user } from '$lib/stores';
 	import Plus from '$lib/components/icons/Plus.svelte';
 	import UsersSolid from '$lib/components/icons/UsersSolid.svelte';
 	import ChevronRight from '$lib/components/icons/ChevronRight.svelte';
@@ -21,18 +16,55 @@
 	import ChevronDown from '$lib/components/icons/ChevronDown.svelte';
 	import Check from '$lib/components/icons/Check.svelte';
 	import Select from '$lib/components/common/Select.svelte';
+	import { DEFAULT_PERMISSIONS } from '$lib/constants/permissions';
 	import { createNewGroup, getGroups } from '$lib/apis/groups';
-	import {
-		getUserDefaultPermissions,
-		getAllUsers,
-		updateUserDefaultPermissions
-	} from '$lib/apis/users';
+	import { getUserDefaultPermissions, updateUserDefaultPermissions } from '$lib/apis/users';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
+
+	type PermissionSet = typeof DEFAULT_PERMISSIONS;
+
+	type Group = {
+		id: string;
+		name: string;
+		description?: string;
+		user_ids: Array<string | number>;
+		member_count?: number;
+		data?: Record<string, unknown>;
+		permissions?: Partial<PermissionSet>;
+	};
+
+	type GroupForm = {
+		name: string;
+		description: string;
+		data: Record<string, unknown>;
+		permissions: PermissionSet;
+	};
+
+	const clonePermissions = (): PermissionSet => ({
+		workspace: { ...DEFAULT_PERMISSIONS.workspace },
+		sharing: { ...DEFAULT_PERMISSIONS.sharing },
+		access_grants: { ...DEFAULT_PERMISSIONS.access_grants },
+		chat: { ...DEFAULT_PERMISSIONS.chat },
+		features: { ...DEFAULT_PERMISSIONS.features },
+		settings: { ...DEFAULT_PERMISSIONS.settings }
+	});
+
+	const mergePermissions = (permissions?: Partial<PermissionSet>): PermissionSet => ({
+		workspace: { ...DEFAULT_PERMISSIONS.workspace, ...(permissions?.workspace ?? {}) },
+		sharing: { ...DEFAULT_PERMISSIONS.sharing, ...(permissions?.sharing ?? {}) },
+		access_grants: {
+			...DEFAULT_PERMISSIONS.access_grants,
+			...(permissions?.access_grants ?? {})
+		},
+		chat: { ...DEFAULT_PERMISSIONS.chat, ...(permissions?.chat ?? {}) },
+		features: { ...DEFAULT_PERMISSIONS.features, ...(permissions?.features ?? {}) },
+		settings: { ...DEFAULT_PERMISSIONS.settings, ...(permissions?.settings ?? {}) }
+	});
 
 	let loaded = false;
 
-	let groups = [];
+	let groups: Group[] = [];
 
 	let query = '';
 	let sortBy = 'members';
@@ -61,16 +93,16 @@
 			return 0;
 		});
 
-	let defaultPermissions = {};
+	let defaultPermissions: PermissionSet = clonePermissions();
 
 	let showAddGroupModal = false;
 	let showDefaultPermissionsModal = false;
 
 	const setGroups = async () => {
-		groups = await getGroups(localStorage.token);
+		groups = (await getGroups(localStorage.token)) ?? [];
 	};
 
-	const addGroupHandler = async (group) => {
+	const addGroupHandler = async (group: GroupForm) => {
 		const res = await createNewGroup(localStorage.token, group).catch((error) => {
 			toast.error(`${error}`);
 			return null;
@@ -83,8 +115,6 @@
 	};
 
 	const updateDefaultPermissionsHandler = async (group) => {
-		console.debug(group.permissions);
-
 		const res = await updateUserDefaultPermissions(localStorage.token, group.permissions).catch(
 			(error) => {
 				toast.error(`${error}`);
@@ -94,7 +124,9 @@
 
 		if (res) {
 			toast.success($i18n.t('Default permissions updated successfully'));
-			defaultPermissions = await getUserDefaultPermissions(localStorage.token);
+			defaultPermissions = mergePermissions(
+				(await getUserDefaultPermissions(localStorage.token)) as Partial<PermissionSet>
+			);
 		}
 	};
 
@@ -104,7 +136,9 @@
 			return;
 		}
 
-		defaultPermissions = await getUserDefaultPermissions(localStorage.token);
+		defaultPermissions = mergePermissions(
+			(await getUserDefaultPermissions(localStorage.token)) as Partial<PermissionSet>
+		);
 		await setGroups();
 		loaded = true;
 	});

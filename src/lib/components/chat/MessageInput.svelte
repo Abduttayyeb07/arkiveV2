@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import DOMPurify from 'dompurify';
 	import { toast } from 'svelte-sonner';
 
@@ -100,7 +102,7 @@
 	import Expand from '../icons/Expand.svelte';
 	import QueuedMessageItem from './MessageInput/QueuedMessageItem.svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	export let onUpload: Function = (e) => {};
 	export let onChange: Function = () => {};
@@ -113,7 +115,7 @@
 	export let uploadPending = false;
 
 	export let atSelectedModel: Model | undefined = undefined;
-	export let selectedModels: [''];
+	export let selectedModels: string[];
 
 	let selectedModelIds = [];
 	$: selectedModelIds = atSelectedModel !== undefined ? [atSelectedModel.id] : selectedModels;
@@ -144,8 +146,8 @@
 
 	let showInputVariablesModal = false;
 	let inputVariablesModalCallback = (variableValues) => {};
-	let inputVariables = {};
-	let inputVariableValues = {};
+	let inputVariables: Record<string, any> = {};
+	let inputVariableValues: Record<string, any> = {};
 
 	let showValvesModal = false;
 	let selectedValvesType = 'tool'; // 'tool' or 'function'
@@ -873,7 +875,7 @@
 		}
 
 		// Cmd/Ctrl+Shift+L to toggle dictation
-		if (e.key.toLowerCase() === 'l' && (e.metaKey || e.ctrlKey) && e.shiftKey) {
+		if (e.key.toLowerCase() === 'l' && (e.metaKey || e.ctrlKey) && (e as KeyboardEvent).shiftKey) {
 			e.preventDefault();
 			if (recording) {
 				// Confirm and stop recording
@@ -1494,8 +1496,8 @@
 																// either when Enter is pressed or when Ctrl+Enter is pressed.
 																const enterPressed =
 																	($settings?.ctrlEnterToSend ?? false)
-																		? (e.key === 'Enter' || e.keyCode === 13) && isCtrlPressed
-																		: (e.key === 'Enter' || e.keyCode === 13) && !e.shiftKey;
+																		? (e.key === 'Enter' || (e as any).keyCode === 13) && isCtrlPressed
+																		: (e.key === 'Enter' || (e as any).keyCode === 13) && !(e as KeyboardEvent).shiftKey;
 
 																if (enterPressed) {
 																	e.preventDefault();
@@ -1521,7 +1523,7 @@
 														e = e.detail.event;
 														console.log(e);
 
-														const clipboardData = e.clipboardData || window.clipboardData;
+														const clipboardData = (e as ClipboardEvent).clipboardData || window.clipboardData;
 
 														if (clipboardData && clipboardData.items) {
 															for (const item of clipboardData.items) {

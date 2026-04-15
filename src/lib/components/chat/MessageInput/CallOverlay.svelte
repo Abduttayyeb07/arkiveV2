@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { config, models, settings, showCallOverlay, TTSWorker } from '$lib/stores';
 	import { onMount, tick, getContext, onDestroy, createEventDispatcher } from 'svelte';
 
@@ -15,7 +17,7 @@
 	import { KokoroWorker } from '$lib/workers/KokoroWorker';
 	import { ARKIVE_API_BASE_URL } from '$lib/constants';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	export let eventTarget: EventTarget;
 	export let submitPrompt: Function;
@@ -359,7 +361,7 @@
 		detectSound();
 	};
 
-	let finishedMessages = {};
+	let finishedMessages: Record<string, any> = {};
 	let currentMessageId = null;
 	let currentUtterance = null;
 
@@ -514,7 +516,7 @@
 		return audioCache.get(content);
 	};
 
-	let messages = {};
+	let messages: Record<string, any> = {};
 
 	const monitorAndPlayAudio = async (id, signal) => {
 		while (!signal.aborted) {

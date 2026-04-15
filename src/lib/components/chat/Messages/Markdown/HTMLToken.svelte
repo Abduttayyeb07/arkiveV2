@@ -6,7 +6,9 @@
 	import { settings } from '$lib/stores';
 
 	export let id: string;
-	export let token: Token;
+	export let token: Token & { text?: string };
+
+	type IframeLoadEvent = Event & { currentTarget: EventTarget & HTMLIFrameElement };
 
 	let html: string | null = null;
 
@@ -27,10 +29,7 @@
 				class="w-full my-2"
 				src={videoSrc.replaceAll('&amp;', '&')}
 				title="Video player"
-				frameborder="0"
-				referrerpolicy="strict-origin-when-cross-origin"
 				controls
-				allowfullscreen
 			></video>
 		{:else}
 			{token.text}
@@ -75,11 +74,12 @@
 				src={iframeSrc}
 				title="Embedded content"
 				frameborder="0"
-				sandbox
-				on:load={(e) => {
+				sandbox=""
+				on:load={(e: IframeLoadEvent) => {
+					const iframe = e.currentTarget;
+
 					try {
-						e.currentTarget.style.height =
-							e.currentTarget.contentWindow.document.body.scrollHeight + 20 + 'px';
+						iframe.style.height = iframe.contentWindow?.document.body.scrollHeight + 20 + 'px';
 					} catch {}
 				}}
 			></iframe>
@@ -118,10 +118,11 @@
 				referrerpolicy="strict-origin-when-cross-origin"
 				allowfullscreen
 				width="100%"
-				on:load={(e) => {
+				on:load={(e: IframeLoadEvent) => {
+					const iframe = e.currentTarget;
+
 					try {
-						e.currentTarget.style.height =
-							e.currentTarget.contentWindow.document.body.scrollHeight + 20 + 'px';
+						iframe.style.height = iframe.contentWindow?.document.body.scrollHeight + 20 + 'px';
 					} catch {}
 				}}
 			></iframe>

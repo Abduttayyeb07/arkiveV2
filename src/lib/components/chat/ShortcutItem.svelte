@@ -1,18 +1,27 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { getContext, onMount } from 'svelte';
 	import Tooltip from '../common/Tooltip.svelte';
-	import type { Shortcut } from '$lib/shortcuts';
+	import type { ShortcutDefinition } from '$lib/shortcuts';
 
-	export let shortcut: Shortcut;
+	type KeyboardLayoutNavigator = Navigator & {
+		keyboard?: {
+			getLayoutMap?: () => Promise<Map<string, string>>;
+		};
+	};
+
+	export let shortcut: ShortcutDefinition;
 	export let isMac: boolean;
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 	let keyboardLayoutMap: Map<string, string> | undefined;
 
 	onMount(async () => {
-		if (navigator.keyboard && 'getLayoutMap' in navigator.keyboard) {
+		const keyboard = (navigator as KeyboardLayoutNavigator).keyboard;
+		if (keyboard?.getLayoutMap) {
 			try {
-				keyboardLayoutMap = await navigator.keyboard.getLayoutMap();
+				keyboardLayoutMap = await keyboard.getLayoutMap();
 			} catch (error) {
 				console.error('Failed to get keyboard layout map:', error);
 			}

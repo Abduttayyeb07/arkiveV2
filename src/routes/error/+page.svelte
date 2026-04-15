@@ -1,9 +1,11 @@
-<script>
+<script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { goto } from '$app/navigation';
 	import { ARKIVE_NAME, config } from '$lib/stores';
 	import { onMount, getContext } from 'svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	let loaded = false;
 
@@ -29,18 +31,6 @@
 						{$i18n.t(
 							"Oops! You're using an unsupported method (frontend only). Please serve Arkive from the backend."
 						)}
-
-						<br class=" " />
-						<br class=" " />
-						<a
-							class=" font-medium underline"
-							href="https://github.com/Abduttayyeb07/ArkiveV2IA#how-to-install-"
-							target="_blank">{$i18n.t('See readme.md for instructions')}</a
-						>
-						{$i18n.t('or')}
-						<a class=" font-medium underline" href="https://discord.gg/5rJgQTnV4s" target="_blank"
-							>{$i18n.t('join our Discord for help.')}</a
-						>
 					</div>
 
 					<div class=" mt-6 mx-auto relative group w-fit">

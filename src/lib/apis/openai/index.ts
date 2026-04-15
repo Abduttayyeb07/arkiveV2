@@ -267,7 +267,7 @@ export const getOpenAIModels = async (token: string, urlIdx?: number) => {
 
 export const verifyOpenAIConnection = async (
 	token: string = '',
-	connection: dict = {},
+	connection: Record<string, any> = {},
 	direct: boolean = false
 ) => {
 	const { url, key, config } = connection;

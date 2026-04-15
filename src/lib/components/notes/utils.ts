@@ -18,8 +18,8 @@ export const downloadPdf = async (note) => {
 	const isDarkMode = document.documentElement.classList.contains('dark');
 
 	let node;
-	if (html instanceof HTMLElement) {
-		node = html;
+	if ((html as unknown) instanceof HTMLElement) {
+		node = html as unknown as HTMLElement;
 	} else {
 		const virtualWidth = 800; // px, fixed width for cloned element
 
@@ -64,7 +64,7 @@ export const downloadPdf = async (note) => {
 	});
 
 	// Remove hidden node if needed
-	if (!(html instanceof HTMLElement)) {
+	if (!((html as unknown) instanceof HTMLElement)) {
 		document.body.removeChild(node);
 	}
 

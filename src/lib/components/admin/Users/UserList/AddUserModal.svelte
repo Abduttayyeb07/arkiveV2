@@ -1,7 +1,9 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { toast } from 'svelte-sonner';
 	import { createEventDispatcher } from 'svelte';
-	import { onMount, getContext } from 'svelte';
+	import { getContext } from 'svelte';
 	import { addUser } from '$lib/apis/auths';
 
 	import { ARKIVE_BASE_URL } from '$lib/constants';
@@ -12,14 +14,14 @@
 	import XMark from '$lib/components/icons/XMark.svelte';
 	import SensitiveInput from '$lib/components/common/SensitiveInput.svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 	const dispatch = createEventDispatcher();
 
 	export let show = false;
 
 	let loading = false;
 	let tab = '';
-	let inputFiles;
+	let inputFiles: FileList | null = null;
 
 	let _user = {
 		name: '',
@@ -68,8 +70,15 @@
 				const file = inputFiles[0];
 				const reader = new FileReader();
 
-				reader.onload = async (e) => {
-					const csv = e.target.result;
+				reader.onload = async (e: ProgressEvent<FileReader>) => {
+					const csv = typeof e.target?.result === 'string' ? e.target.result : '';
+
+					if (csv === '') {
+						toast.error($i18n.t('File not found.'));
+						stopLoading();
+						return;
+					}
+
 					const rows = csv.split('\n');
 
 					let userCount = 0;
@@ -108,10 +117,12 @@
 						$i18n.t('Successfully imported {{userCount}} users.', { userCount: userCount })
 					);
 					inputFiles = null;
-					const uploadInputElement = document.getElementById('upload-user-csv-input');
+					const uploadInputElement = document.getElementById(
+						'upload-user-csv-input'
+					) as HTMLInputElement | null;
 
 					if (uploadInputElement) {
-						uploadInputElement.value = null;
+						uploadInputElement.value = '';
 					}
 
 					stopLoading();
@@ -232,10 +243,10 @@
 
 								<div class="flex-1">
 									<SensitiveInput
-										class="w-full text-sm bg-transparent disabled:text-gray-500 dark:disabled:text-gray-500 outline-hidden"
+										outerClassName="flex flex-1 bg-transparent"
+										inputClassName="w-full text-sm bg-transparent disabled:text-gray-500 dark:disabled:text-gray-500 outline-hidden"
 										type="password"
 										bind:value={_user.password}
-										aria-label={$i18n.t('Password')}
 										placeholder={$i18n.t('Enter Your Password')}
 										autocomplete="off"
 										required
@@ -257,7 +268,9 @@
 										class="w-full text-sm font-medium py-3 bg-transparent hover:bg-gray-100 border border-dashed dark:border-gray-850 dark:hover:bg-gray-850 text-center rounded-xl"
 										type="button"
 										on:click={() => {
-											document.getElementById('upload-user-csv-input')?.click();
+											(
+												document.getElementById('upload-user-csv-input') as HTMLInputElement | null
+											)?.click();
 										}}
 									>
 										{#if inputFiles}
@@ -274,7 +287,7 @@
 									)}
 									<a
 										class="underline dark:text-gray-200"
-										href="{ARKIVE_BASE_URL}/static/user-import.csv"
+										href={`${ARKIVE_BASE_URL}/static/user-import.csv`}
 									>
 										{$i18n.t('Click here to download user import template file.')}
 									</a>

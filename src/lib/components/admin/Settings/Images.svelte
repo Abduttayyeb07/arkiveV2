@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { toast } from 'svelte-sonner';
 
 	import { createEventDispatcher, onMount, getContext } from 'svelte';
@@ -21,7 +23,7 @@
 	import CodeEditorModal from '$lib/components/common/CodeEditorModal.svelte';
 	const dispatch = createEventDispatcher();
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	let loading = false;
 
@@ -685,12 +687,12 @@
 								type="file"
 								accept=".json"
 								on:change={(e) => {
-									const file = e.target.files[0];
+									const file = (e.target as HTMLInputElement).files[0];
 									const reader = new FileReader();
 
 									reader.onload = (e) => {
-										config.COMFYUI_WORKFLOW = e.target.result;
-										e.target.value = null;
+										config.COMFYUI_WORKFLOW = e.target.result as string;
+										(e.target as unknown as HTMLInputElement).value = '';
 									};
 
 									reader.readAsText(file);
@@ -1098,12 +1100,12 @@
 								type="file"
 								accept=".json"
 								on:change={(e) => {
-									const file = e.target.files[0];
+									const file = (e.target as HTMLInputElement).files[0];
 									const reader = new FileReader();
 
 									reader.onload = (e) => {
-										config.IMAGES_EDIT_COMFYUI_WORKFLOW = e.target.result;
-										e.target.value = null;
+										config.IMAGES_EDIT_COMFYUI_WORKFLOW = e.target.result as string;
+										(e.target as unknown as HTMLInputElement).value = '';
 									};
 
 									reader.readAsText(file);

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { toast } from 'svelte-sonner';
 	import dayjs from 'dayjs';
 	import relativeTime from 'dayjs/plugin/relativeTime';
@@ -18,7 +20,7 @@
 	import Youtube from '$lib/components/icons/Youtube.svelte';
 	import Folder from '$lib/components/icons/Folder.svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	export let query = '';
 	export let onSelect = (e) => {};
@@ -57,7 +59,7 @@
 
 	export const select = async () => {
 		// find item with data-selected=true
-		const item = document.querySelector(`[data-selected="true"]`);
+		const item = document.querySelector(`[data-selected="true"]`) as HTMLElement | null;
 		if (item) {
 			// click the item
 			item.click();

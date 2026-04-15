@@ -1,10 +1,12 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { toast } from 'svelte-sonner';
 	import fileSaver from 'file-saver';
 	const { saveAs } = fileSaver;
 
 	import { onMount, getContext, tick, onDestroy } from 'svelte';
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	import { ARKIVE_NAME, config, tools as _tools, user } from '$lib/stores';
 
@@ -161,10 +163,9 @@
 		_tools.set(await getTools(localStorage.token));
 	};
 
-	onMount(async () => {
+	onMount(() => {
 		viewOption = localStorage?.workspaceViewOption || '';
-		await init();
-		loaded = true;
+		init().then(() => { loaded = true; });
 
 		const onKeyDown = (event) => {
 			if (event.key === 'Shift') {
@@ -609,7 +610,7 @@
 		on:confirm={() => {
 			const reader = new FileReader();
 			reader.onload = async (event) => {
-				const _tools = JSON.parse(event.target.result);
+				const _tools = JSON.parse(event.target.result as string);
 				console.log(_tools);
 
 				for (const tool of _tools) {

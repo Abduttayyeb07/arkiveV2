@@ -117,24 +117,34 @@ export const currentChatPage = writable(1);
 export const isLastActiveTab = writable(true);
 export const playingNotificationSound = writable(false);
 
-export type Model = OpenAIModel | OllamaModel;
+export type Model = OpenAIModel | OllamaModel | ArenaModel;
 
 type BaseModel = {
 	id: string;
 	name: string;
 	info?: ModelConfig;
 	owned_by: 'ollama' | 'openai' | 'arena';
+	preset?: boolean;
+	arena?: boolean;
+	direct?: boolean;
 };
+
+export interface ArenaModel extends BaseModel {
+	owned_by: 'arena';
+	filters?: any[];
+}
 
 export interface OpenAIModel extends BaseModel {
 	owned_by: 'openai';
 	external: boolean;
 	source?: string;
+	filters?: any[];
 }
 
 export interface OllamaModel extends BaseModel {
 	owned_by: 'ollama';
 	details: OllamaModelDetails;
+	filters?: any[];
 	size: number;
 	description: string;
 	model: string;
@@ -168,7 +178,7 @@ type OllamaModelDetails = {
 };
 
 type Settings = {
-	pinnedModels?: never[];
+	pinnedModels?: string[];
 	toolServers?: never[];
 	detectArtifacts?: boolean;
 	showUpdateToast?: boolean;
@@ -192,7 +202,7 @@ type Settings = {
 	richTextInput?: boolean;
 	params?: any;
 	userLocation?: any;
-	webSearch?: any;
+	webSearch?: string | boolean;
 	memory?: boolean;
 	autoTags?: boolean;
 	autoFollowUps?: boolean;
@@ -216,7 +226,23 @@ type Settings = {
 	title?: TitleSettings;
 	showChatTitleInTab?: boolean;
 	splitLargeDeltas?: boolean;
-	chatDirection?: 'LTR' | 'RTL' | 'auto';
+	showFloatingActionButtons?: boolean;
+	chatFadeStreamingText?: boolean;
+	chatDirection?: 'ltr' | 'rtl' | 'auto';
+	insertSuggestionPrompt?: boolean;
+	insertPromptAsRichText?: boolean;
+	tools?: string[];
+	terminalServers?: { url: string; enabled?: boolean; [key: string]: any }[];
+	temporaryChatByDefault?: boolean;
+	enableMessageQueue?: boolean;
+	showFormattingToolbar?: boolean;
+	imageCompressionInChannels?: boolean;
+	displayMultiModelResponsesInTabs?: boolean;
+	regenerateMenu?: boolean;
+	keepFollowUpPrompts?: boolean;
+	insertFollowUpPrompt?: boolean;
+	floatingActionButtons?: boolean;
+	version?: string;
 	ctrlEnterToSend?: boolean;
 	renderMarkdownInPreviews?: boolean;
 
@@ -265,27 +291,38 @@ type Config = {
 	status: boolean;
 	name: string;
 	version: string;
+	onboarding?: boolean;
 	default_locale: string;
 	default_models: string;
 	default_prompt_suggestions: PromptSuggestion[];
 	features: {
 		auth: boolean;
 		auth_trusted_header: boolean;
+		enable_ldap?: boolean;
 		enable_api_keys: boolean;
 		enable_signup: boolean;
+		enable_signup_password_confirmation?: boolean;
 		enable_login_form: boolean;
 		enable_web_search?: boolean;
+		enable_code_interpreter?: boolean;
 		enable_google_drive_integration: boolean;
 		enable_onedrive_integration: boolean;
+		enable_onedrive_personal?: boolean;
+		enable_onedrive_business?: boolean;
 		enable_image_generation: boolean;
 		enable_admin_export: boolean;
 		enable_admin_chat_access: boolean;
 		enable_admin_analytics: boolean;
-		enable_community_sharing: boolean;
-		enable_memories: boolean;
+		enable_public_active_users_count?: boolean;
 		enable_autocomplete_generation: boolean;
 		enable_direct_connections: boolean;
 		enable_version_update_check: boolean;
+		enable_notes?: boolean;
+		enable_folders?: boolean;
+		enable_channels?: boolean;
+		enable_memories?: boolean;
+		enable_user_status?: boolean;
+		enable_user_webhooks?: boolean;
 		folder_max_file_count?: number;
 	};
 	oauth: {
@@ -293,9 +330,26 @@ type Config = {
 			[key: string]: string;
 		};
 	};
+	file?: {
+		max_count?: number;
+		max_size?: number;
+		allowed_extensions?: string[];
+	};
+	user_count?: number;
+	code?: { [key: string]: any };
+	default_pinned_models?: string[];
+	audio?: {
+		tts: {
+			engine: string;
+			voice?: string;
+			split_on?: string;
+		};
+		stt?: any;
+	};
 	ui?: {
 		pending_user_overlay_title?: string;
 		pending_user_overlay_content?: string;
+		response_watermark?: string;
 	};
 };
 
@@ -305,10 +359,25 @@ type PromptSuggestion = {
 };
 
 export type SessionUser = {
-	permissions: any;
+	permissions: {
+		chat?: {
+			edit?: boolean;
+			temporary?: boolean;
+			temporary_enforced?: boolean;
+			web_upload?: boolean;
+			multiple_models?: boolean;
+			[key: string]: any;
+		};
+		features?: Record<string, boolean>;
+		[key: string]: any;
+	};
 	id: string;
 	email: string;
 	name: string;
 	role: string;
 	profile_image_url: string;
+	token?: string;
+	is_active?: boolean;
+	status_emoji?: string;
+	status_message?: string;
 };

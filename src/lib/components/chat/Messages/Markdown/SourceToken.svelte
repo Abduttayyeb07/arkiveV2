@@ -3,12 +3,15 @@
 	import { decodeString } from '$lib/utils';
 	import Source from './Source.svelte';
 
-	export let id;
-	export let token;
-	export let sourceIds = [];
-	export let onClick: Function = () => {};
+	type CitationIdentifier = number | string;
 
-	let containerElement;
+	export let token: {
+		ids?: number[];
+		citationIdentifiers?: CitationIdentifier[];
+		raw?: string;
+	};
+	export let sourceIds: string[] = [];
+	export let onClick: (event?: MouseEvent) => void = () => {};
 	let openPreview = false;
 
 	// Helper function to return only the domain from a URL
@@ -61,7 +64,7 @@
 				</button>
 			</LinkPreview.Trigger>
 			<LinkPreview.Portal>
-				<LinkPreview.Content class="z-[999]" align="start" strategy="fixed" sideOffset={6}>
+				<LinkPreview.Content class="z-[999]" align="start" sideOffset={6}>
 					<div class="bg-gray-50 dark:bg-gray-850 rounded-xl p-1 cursor-pointer">
 						{#each token.citationIdentifiers ?? token.ids as identifier}
 							{@const id =

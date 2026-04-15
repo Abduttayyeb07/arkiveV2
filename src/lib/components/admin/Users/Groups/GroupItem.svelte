@@ -1,26 +1,47 @@
-<script>
+<script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { toast } from 'svelte-sonner';
 	import { onMount, getContext } from 'svelte';
 	import { page } from '$app/stores';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	import { deleteGroupById, updateGroupById } from '$lib/apis/groups';
+	import { DEFAULT_PERMISSIONS } from '$lib/constants/permissions';
 
 	import Pencil from '$lib/components/icons/Pencil.svelte';
 	import EditGroupModal from './EditGroupModal.svelte';
 
-	export let group = {
+	type PermissionSet = typeof DEFAULT_PERMISSIONS;
+
+	type Group = {
+		id: string;
+		name: string;
+		description?: string;
+		user_ids: Array<string | number>;
+		member_count?: number;
+		data?: Record<string, unknown>;
+		permissions?: Partial<PermissionSet>;
+	};
+
+	export let group: Group = {
+		id: '',
 		name: 'Admins',
 		user_ids: [1, 2, 3]
 	};
-	export let defaultPermissions = {};
+	export let defaultPermissions: PermissionSet = DEFAULT_PERMISSIONS;
 
-	export let setGroups = () => {};
+	export let setGroups: () => void | Promise<void> = () => {};
 
 	let showEdit = false;
 
-	const updateHandler = async (_group) => {
+	const updateHandler = async (_group: {
+		name: string;
+		description: string;
+		data: Record<string, unknown>;
+		permissions: PermissionSet;
+	}) => {
 		const res = await updateGroupById(localStorage.token, group.id, _group).catch((error) => {
 			toast.error(`${error}`);
 			return null;
@@ -46,7 +67,7 @@
 
 	onMount(() => {
 		const groupId = $page.url.searchParams.get('id');
-		if (groupId && groupId === group.id) {
+		if (groupId && groupId === String(group.id)) {
 			showEdit = true;
 		}
 	});

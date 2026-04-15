@@ -1,9 +1,11 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
+	import type { i18n as i18nType } from 'i18next';
 	import { decode } from 'html-entities';
 	import { v4 as uuidv4 } from 'uuid';
 
 	import { getContext } from 'svelte';
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<i18nType>>('i18n');
 
 	import { slide } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
@@ -255,11 +257,15 @@
 			{#each files ?? [] as file, idx}
 				{#if typeof file === 'string'}
 					{#if file.startsWith('data:image/')}
-						<Image id={`${componentId}-tool-call-result-${idx}`} src={file} alt="Image" />
+						<div id={`${componentId}-tool-call-result-${idx}`}>
+							<Image src={file} alt="Image" />
+						</div>
 					{/if}
 				{:else if typeof file === 'object'}
 					{#if (file.type === 'image' || (file?.content_type ?? '').startsWith('image/')) && file.url}
-						<Image id={`${componentId}-tool-call-result-${idx}`} src={file.url} alt="Image" />
+						<div id={`${componentId}-tool-call-result-${idx}`}>
+							<Image src={file.url} alt="Image" />
+						</div>
 					{/if}
 				{/if}
 			{/each}

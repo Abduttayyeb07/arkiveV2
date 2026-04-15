@@ -8,7 +8,7 @@ const TOOL_SERVER_FETCH_TIMEOUT = 10000;
 // the one for whom it was intended, and return answered.
 export const getModels = async (
 	token: string = '',
-	connections: object | null = null,
+	connections: any | null = null,
 	base: boolean = false,
 	refresh: boolean = false
 ) => {
@@ -161,9 +161,12 @@ export const getModels = async (
 
 type ChatCompletedForm = {
 	model: string;
-	messages: string[];
+	messages: any[];
 	chat_id: string;
-	session_id: string;
+	session_id?: string;
+	id?: string;
+	filter_ids?: string[];
+	model_item?: any;
 };
 
 export const chatCompleted = async (token: string, body: ChatCompletedForm) => {
@@ -345,7 +348,7 @@ export const getToolServerData = async (token: string, url: string) => {
 	return res;
 };
 
-export const getToolServersData = async (servers: object[]) => {
+export const getToolServersData = async (servers: any[]) => {
 	return (
 		await Promise.all(
 			servers
@@ -1737,13 +1740,38 @@ export interface ModelConfig {
 }
 
 export interface ModelMeta {
-	toolIds: never[];
+	toolIds?: string[];
 	description?: string;
-	capabilities?: object;
+	capabilities?: Record<string, any>;
 	profile_image_url?: string;
+	hidden?: boolean;
+	defaultFilterIds?: string[];
+	defaultFeatureIds?: string[];
+	tts?: { voice?: string };
+	tags?: any[];
+	suggestion_prompts?: any[];
 }
 
-export interface ModelParams {}
+export interface ModelParams {
+	stream_response?: boolean;
+	stream_delta_chunk_size?: number;
+	system?: string;
+	stop?: string | string[];
+	temperature?: number;
+	reasoning_effort?: any;
+	logit_bias?: any;
+	max_tokens?: number;
+	top_p?: number;
+	top_k?: number;
+	num_ctx?: number;
+	num_batch?: number;
+	num_keep?: number;
+	seed?: number;
+	function_calling?: any;
+	reasoning_tags?: any;
+	custom_params?: any;
+	[key: string]: any;
+}
 
 export type GlobalModelConfig = ModelConfig[];
 
