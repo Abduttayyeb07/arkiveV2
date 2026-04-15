@@ -13,7 +13,7 @@ Arkive is a full-stack enterprise AI platform. It is **not** a thin wrapper arou
 - A persistent database of users, chats, notes, knowledge bases, tools, and settings
 - A pluggable model routing layer that speaks to Ollama, OpenAI-compatible endpoints, Anthropic, and pipelines
 - A retrieval-augmented generation (RAG) pipeline with multiple vector database backends
-- Team collaboration features: channels, folders, shared chats, notes, webhooks
+- Team collaboration features: channels, folders, shared chats, webhooks
 - Admin governance: RBAC groups, audit logs, analytics, evaluations, and fine-grained feature flags
 - Browser-side Python execution via Pyodide and backend-side tool/terminal execution
 
@@ -78,7 +78,7 @@ The codebase was forked from Open WebUI and has been comprehensively rebranded a
 │                        Browser (SvelteKit SPA)                    │
 │                                                                    │
 │  ┌───────────┐  ┌──────────┐  ┌──────────┐  ┌────────────────┐  │
-│  │   Chat    │  │ Workspace│  │  Admin   │  │  Notes/Channels│  │
+│  │   Chat    │  │ Workspace│  │  Admin   │  │    Channels    │  │
 │  │ (Svelte)  │  │ (Svelte) │  │ (Svelte) │  │   (Svelte)     │  │
 │  └─────┬─────┘  └────┬─────┘  └────┬─────┘  └───────┬────────┘  │
 │        │              │              │                 │           │
@@ -150,8 +150,7 @@ ArkiveV2IA/
 │       ├── i18n/                     # i18next setup, locale files
 │       ├── utils/                    # Frontend utility functions (index.ts is large)
 │       ├── workers/
-│       │   ├── pyodide.worker.ts     # Pyodide (browser Python) worker
-│       │   └── kokoro.worker.ts      # Kokoro TTS browser worker
+│       │   └── pyodide.worker.ts     # Pyodide (browser Python) worker
 │       ├── apis/                     # Typed fetch wrappers for every backend route
 │       │   ├── index.ts              # Generic model/config fetchers
 │       │   ├── auths/
@@ -237,7 +236,6 @@ All routes are mounted in `backend/arkive/main.py`. The full prefix map:
 | `/api/v1/users` | `routers/users.py` | User CRUD, roles, permissions, profile |
 | `/api/v1/chats` | `routers/chats.py` | Chat CRUD, messages, sharing, archiving, tags |
 | `/api/v1/channels` | `routers/channels.py` | Group channels, DMs, webhooks, messages |
-| `/api/v1/notes` | `routers/notes.py` | Personal notes CRUD |
 | `/api/v1/models` | `routers/models.py` | Model definitions, visibility, ordering |
 | `/api/v1/knowledge` | `routers/knowledge.py` | Knowledge bases, ingestion, search |
 | `/api/v1/prompts` | `routers/prompts.py` | Saved prompts |
@@ -254,7 +252,7 @@ All routes are mounted in `backend/arkive/main.py`. The full prefix map:
 | `/api/v1/configs` | `routers/configs.py` | Runtime app configuration |
 | `/api/v1/tasks` | `routers/tasks.py` | Title gen, autocomplete, tag generation |
 | `/api/v1/images` | `routers/images.py` | Image generation, editing (DALL-E, ComfyUI, A1111) |
-| `/api/v1/audio` | `routers/audio.py` | STT (Whisper), TTS (OpenAI, Kokoro) |
+| `/api/v1/audio` | `routers/audio.py` | STT (Whisper) |
 | `/api/v1/pipelines` | `routers/pipelines.py` | Pipeline execution |
 | `/api/v1/terminals` | `routers/terminals.py` | Terminal server connections |
 | `/api/v1/utils` | `routers/utils.py` | PDF export, gravatar, code formatting |
@@ -280,7 +278,6 @@ src/routes/(app)/
   workspace/tools/            ← Toolkit editor
   workspace/skills/           ← Skill editor
   channel/[id]/+page.svelte   ← Channel view
-  notes/[id]/+page.svelte     ← Note editor
   s/[id]/+page.svelte         ← Public shared chat (read-only)
 ```
 
@@ -298,7 +295,7 @@ src/lib/components/chat/
     ModelSelector.svelte      ← Multi-model selection UI
     Settings/                 ← Per-chat and global chat settings
       Connections/            ← Connection management per-chat
-      Integrations/           ← Drive, OneDrive, terminal connections
+      Integrations/           ← Tool server connections
     FileNav.svelte            ← File attachment navigator
     XTerminal.svelte          ← In-chat terminal (xterm.js)
 ```
@@ -474,7 +471,7 @@ The admin settings panel (`src/lib/components/admin/Settings/`) is organized int
 | Web Search | `WebSearch.svelte` | Web search provider + API key config |
 | Code Execution | `CodeExecution.svelte` | Jupyter/Pyodide settings |
 | Interface | `Interface/` | Banners, UI defaults, autocomplete, suggestions |
-| Audio | `Audio.svelte` | STT/TTS provider selection and config |
+| Audio | `Audio.svelte` | STT provider selection and config |
 | Images | `Images.svelte` | Image generation config (DALL-E, ComfyUI, A1111) |
 | Pipelines | `Pipelines.svelte` | Pipeline server connections |
 | Database | `Database.svelte` | Import/export, backup/restore |
@@ -504,18 +501,7 @@ Each workspace area has a list view and a full editor:
 
 ---
 
-## 14. Notes (Tiptap-Powered Editor)
-
-Notes live at `src/lib/components/notes/NoteEditor.svelte` and use Tiptap with:
-- Rich text editing (headings, lists, tables, code blocks, images)
-- File drag-and-drop ingestion
-- AI chat panel (`NoteEditor/Chat.svelte`) that can read/write the note content
-- Markdown export/import
-- Access control (per-note sharing)
-
----
-
-## 15. Browser Python Execution (Pyodide)
+## 14. Browser Python Execution (Pyodide)
 
 ```
 src/lib/workers/pyodide.worker.ts   ← Web Worker running Pyodide
@@ -530,7 +516,7 @@ static/pyodide/                     ← Pyodide WASM and stdlib (gitignored, gen
 
 ---
 
-## 16. Dev Setup
+## 15. Dev Setup
 
 ### Prerequisites
 
@@ -578,7 +564,7 @@ npm run dev
 
 ---
 
-## 17. Production Deployment
+## 16. Production Deployment
 
 ### Docker (recommended)
 
@@ -606,7 +592,7 @@ FastAPI mounts `build/` as a StaticFiles SPA fallback for all non-API routes.
 
 ---
 
-## 18. Data Layout at Runtime
+## 17. Data Layout at Runtime
 
 ```
 backend/data/
@@ -623,7 +609,7 @@ Optional external infrastructure:
 
 ---
 
-## 19. Branding Rules
+## 18. Branding Rules
 
 - Product name: **Arkive**
 - Variable name in code: `ARKIVE_NAME` (store), `ARKIVE_*` (env vars)
@@ -633,7 +619,7 @@ Optional external infrastructure:
 
 ---
 
-## 20. Key Engineering Patterns
+## 19. Key Engineering Patterns
 
 ### Frontend Conventions
 
@@ -654,7 +640,7 @@ Optional external infrastructure:
 
 ---
 
-## 21. Where to Start (Reading Order for a New AI Agent)
+## 20. Where to Start (Reading Order for a New AI Agent)
 
 To understand the full system in minimum reads:
 
