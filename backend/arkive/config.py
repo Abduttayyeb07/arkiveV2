@@ -1005,11 +1005,24 @@ OLLAMA_BASE_URLS = OLLAMA_BASE_URLS if OLLAMA_BASE_URLS != '' else OLLAMA_BASE_U
 OLLAMA_BASE_URLS = [url.strip() for url in OLLAMA_BASE_URLS.split(';')]
 OLLAMA_BASE_URLS = PersistentConfig('OLLAMA_BASE_URLS', 'ollama.base_urls', OLLAMA_BASE_URLS)
 
+OLLAMA_API_KEY = os.environ.get('OLLAMA_API_KEY', '')
+
 OLLAMA_API_CONFIGS = PersistentConfig(
     'OLLAMA_API_CONFIGS',
     'ollama.api_configs',
     {},
 )
+
+# If OLLAMA_API_KEY env var is set, inject it into every connection config
+if OLLAMA_API_KEY:
+    _configs = OLLAMA_API_CONFIGS.value if isinstance(OLLAMA_API_CONFIGS.value, dict) else {}
+    for idx in range(len(OLLAMA_BASE_URLS.value)):
+        key = str(idx)
+        if key not in _configs:
+            _configs[key] = {}
+        _configs[key]['key'] = OLLAMA_API_KEY
+    OLLAMA_API_CONFIGS.value = _configs
+    OLLAMA_API_CONFIGS.save()
 
 ####################################
 # OPENAI_API
@@ -1238,7 +1251,7 @@ USER_PERMISSIONS_WORKSPACE_MODELS_ACCESS = (
 )
 
 USER_PERMISSIONS_WORKSPACE_KNOWLEDGE_ACCESS = (
-    os.environ.get('USER_PERMISSIONS_WORKSPACE_KNOWLEDGE_ACCESS', 'False').lower() == 'true'
+    os.environ.get('USER_PERMISSIONS_WORKSPACE_KNOWLEDGE_ACCESS', 'True').lower() == 'true'
 )
 
 USER_PERMISSIONS_WORKSPACE_PROMPTS_ACCESS = (
@@ -1250,7 +1263,7 @@ USER_PERMISSIONS_WORKSPACE_TOOLS_ACCESS = (
 )
 
 USER_PERMISSIONS_WORKSPACE_SKILLS_ACCESS = (
-    os.environ.get('USER_PERMISSIONS_WORKSPACE_SKILLS_ACCESS', 'False').lower() == 'true'
+    os.environ.get('USER_PERMISSIONS_WORKSPACE_SKILLS_ACCESS', 'True').lower() == 'true'
 )
 
 USER_PERMISSIONS_WORKSPACE_MODELS_IMPORT = (

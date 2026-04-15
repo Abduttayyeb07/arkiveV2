@@ -729,7 +729,21 @@ class UsersTable:
         except Exception:
             return None
 
-    def update_user_api_key_by_id(self, id: str, api_key: str, db: Optional[Session] = None) -> bool:
+    def get_user_api_key_record_by_id(self, id: str, db: Optional[Session] = None) -> Optional['ApiKey']:
+        try:
+            with get_db_context(db) as db:
+                return db.query(ApiKey).filter_by(user_id=id).first()
+        except Exception:
+            return None
+
+    def update_user_api_key_by_id(
+        self,
+        id: str,
+        api_key: str,
+        data: Optional[dict] = None,
+        expires_at: Optional[int] = None,
+        db: Optional[Session] = None,
+    ) -> bool:
         try:
             with get_db_context(db) as db:
                 db.query(ApiKey).filter_by(user_id=id).delete()
@@ -740,6 +754,8 @@ class UsersTable:
                     id=f'key_{id}',
                     user_id=id,
                     key=api_key,
+                    data=data,
+                    expires_at=expires_at,
                     created_at=now,
                     updated_at=now,
                 )

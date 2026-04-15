@@ -1153,8 +1153,18 @@ async def update_ldap_config(request: Request, form_data: LdapConfigForm, user=D
 
 
 # create api key
+class ApiKeyForm(BaseModel):
+    scope: Optional[str] = 'full_access'  # 'full_access' | 'read_only' | 'chat_only'
+    expires_in_days: Optional[int] = None  # None = no expiry
+
+
 @router.post('/api_key', response_model=ApiKey)
-async def generate_api_key(request: Request, user=Depends(get_current_user), db: Session = Depends(get_session)):
+async def generate_api_key(
+    request: Request,
+    form_data: ApiKeyForm = ApiKeyForm(),
+    user=Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
     if not request.app.state.config.ENABLE_API_KEYS or (
         user.role != 'admin'
         and not has_permission(user.id, 'features.api_keys', request.app.state.config.USER_PERMISSIONS)
@@ -1164,12 +1174,26 @@ async def generate_api_key(request: Request, user=Depends(get_current_user), db:
             detail=ERROR_MESSAGES.API_KEY_CREATION_NOT_ALLOWED,
         )
 
+    expires_at = None
+    if form_data.expires_in_days:
+        expires_at = int(time.time()) + (form_data.expires_in_days * 86400)
+
+    scope = form_data.scope if form_data.scope in ('full_access', 'read_only', 'chat_only') else 'full_access'
+
     api_key = create_api_key()
-    success = Users.update_user_api_key_by_id(user.id, api_key, db=db)
+    success = Users.update_user_api_key_by_id(
+        user.id,
+        api_key,
+        data={'scope': scope},
+        expires_at=expires_at,
+        db=db,
+    )
 
     if success:
         return {
             'api_key': api_key,
+            'data': {'scope': scope},
+            'expires_at': expires_at,
         }
     else:
         raise HTTPException(500, detail=ERROR_MESSAGES.CREATE_API_KEY_ERROR)
@@ -1184,10 +1208,12 @@ async def delete_api_key(user=Depends(get_current_user), db: Session = Depends(g
 # get api key
 @router.get('/api_key', response_model=ApiKey)
 async def get_api_key(user=Depends(get_current_user), db: Session = Depends(get_session)):
-    api_key = Users.get_user_api_key_by_id(user.id, db=db)
-    if api_key:
+    record = Users.get_user_api_key_record_by_id(user.id, db=db)
+    if record:
         return {
-            'api_key': api_key,
+            'api_key': record.key,
+            'data': record.data,
+            'expires_at': record.expires_at,
         }
     else:
         raise HTTPException(404, detail=ERROR_MESSAGES.API_KEY_NOT_FOUND)
