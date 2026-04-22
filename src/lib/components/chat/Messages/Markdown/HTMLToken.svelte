@@ -5,7 +5,7 @@
 	import { ARKIVE_BASE_URL } from '$lib/constants';
 	import { settings } from '$lib/stores';
 
-	export let id: string;
+	export const id: string = '';
 	export let token: Token & { text?: string };
 
 	type IframeLoadEvent = Event & { currentTarget: EventTarget & HTMLIFrameElement };

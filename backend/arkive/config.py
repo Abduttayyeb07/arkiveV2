@@ -859,6 +859,14 @@ if frontend_favicon.exists():
     except Exception as e:
         logging.error(f'An error occurred: {e}')
 
+frontend_logo = FRONTEND_BUILD_DIR / 'static' / 'logo.png'
+
+if frontend_logo.exists():
+    try:
+        shutil.copyfile(frontend_logo, STATIC_DIR / 'logo.png')
+    except Exception as e:
+        logging.error(f'An error occurred: {e}')
+
 frontend_splash = FRONTEND_BUILD_DIR / 'static' / 'splash.png'
 
 if frontend_splash.exists():
@@ -2905,7 +2913,7 @@ Respond to the user query using the provided context, incorporating inline citat
 ### Guidelines:
 - If you don't know the answer, clearly state that.
 - If uncertain, ask the user for clarification.
-- Respond in the same language as the user's query.
+- Respond in English only unless an administrator explicitly changes this policy.
 - If the context is unreadable or of poor quality, inform the user and provide the best possible answer.
 - If the answer isn't present in the context but you possess the knowledge, explain this to the user and provide the answer using your own understanding.
 - **Only include inline citations using [id] (e.g., [1], [2]) when the <source> tag includes an id attribute.**

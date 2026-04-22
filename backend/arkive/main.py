@@ -530,6 +530,10 @@ from arkive.utils.middleware import (
     process_chat_payload,
     process_chat_response,
 )
+from arkive.utils.errors import PolicyDeniedException, policy_error_response
+from arkive.utils.policy_engine import evaluate_request as evaluate_policy_request
+from arkive.utils.user_context import get_user_context
+from arkive.utils.misc import get_last_user_message
 from arkive.utils.tools import set_tool_servers, set_terminal_servers
 
 from arkive.utils.auth import (
@@ -590,7 +594,7 @@ class SPAStaticFiles(StaticFiles):
 
 
 if LOG_FORMAT != 'json':
-    print(rf"""
+    banner = rf"""
  █████╗ ██████╗ ██╗  ██╗██╗██╗   ██╗███████╗
 ██╔══██╗██╔══██╗██║ ██╔╝██║██║   ██║██╔════╝
 ███████║██████╔╝█████╔╝ ██║██║   ██║█████╗
@@ -601,7 +605,20 @@ if LOG_FORMAT != 'json':
 v{VERSION} — Enterprise Intelligence Platform
 {f'Build: {ARKIVE_BUILD_HASH}' if ARKIVE_BUILD_HASH != 'dev-build' else ''}
 https://github.com/Abduttayyeb07/ArkiveV2IA
-""")
+"""
+    try:
+        print(banner)
+    except UnicodeEncodeError:
+        print(
+            '\n'.join(
+                [
+                    'ARKIVE',
+                    f'v{VERSION} - Enterprise Intelligence Platform',
+                    *( [f'Build: {ARKIVE_BUILD_HASH}'] if ARKIVE_BUILD_HASH != 'dev-build' else [] ),
+                    'https://github.com/Abduttayyeb07/ArkiveV2IA',
+                ]
+            )
+        )
 
 
 @asynccontextmanager
@@ -1776,6 +1793,29 @@ async def chat_completion(
             detail=str(e),
         )
 
+    # Policy gate runs BEFORE create_task so a block/flag can return a
+    # structured 403 on the HTTP response instead of getting swallowed
+    # inside the detached background task (which would leave the client
+    # waiting on a websocket stream that never arrives).
+    try:
+        messages_for_policy = form_data.get('messages', []) or []
+        user_message_for_policy = get_last_user_message(messages_for_policy) or ''
+        user_context = await get_user_context(user)
+        collection_ids = [
+            f.get('id') for f in form_data.get('files', []) if f.get('id')
+        ] or None
+        policy_result = await evaluate_policy_request(
+            user_context=user_context,
+            query=user_message_for_policy,
+            collection_ids=collection_ids,
+        )
+        request.state.policy = policy_result
+        request.state.user_context = user_context
+        if not policy_result.permitted:
+            return policy_error_response(policy_result)
+    except PolicyDeniedException as e:
+        return policy_error_response(e.policy_result)
+
     async def process_chat(request, form_data, user, metadata, model):
         try:
             form_data, metadata, events = await process_chat_payload(request, form_data, user, metadata, model)
@@ -1798,6 +1838,8 @@ async def chat_completion(
             ctx = build_chat_response_context(request, form_data, user, model, metadata, tasks, events)
 
             return await process_chat_response(response, ctx)
+        except PolicyDeniedException as e:
+            return policy_error_response(e.policy_result)
         except asyncio.CancelledError:
             log.info('Chat processing was cancelled')
             try:

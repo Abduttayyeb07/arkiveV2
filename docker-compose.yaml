@@ -1,4 +1,22 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: arkive-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-arkive}
+      POSTGRES_USER: ${POSTGRES_USER:-arkive}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-arkive}
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    ports:
+      - ${POSTGRES_PORT:-5440}:5432
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-arkive} -d ${POSTGRES_DB:-arkive}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   ollama:
     volumes:
       - ollama:/root/.ollama
@@ -16,13 +34,17 @@ services:
     volumes:
       - arkive:/app/backend/data
     depends_on:
-      - ollama
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_started
     ports:
       - ${ARKIVE_PORT-3000}:8080
     environment:
       - 'OLLAMA_BASE_URL=http://ollama:11434'
       - 'ARKIVE_SECRET_KEY='
       - 'ARKIVE_NAME=Arkive'
+      - 'DATABASE_URL=postgresql://${POSTGRES_USER:-arkive}:${POSTGRES_PASSWORD:-arkive}@postgres:5432/${POSTGRES_DB:-arkive}'
     extra_hosts:
       - host.docker.internal:host-gateway
     restart: unless-stopped
@@ -30,3 +52,4 @@ services:
 volumes:
   ollama: {}
   arkive: {}
+  postgres: {}

@@ -149,10 +149,10 @@
 
 			if (isDarkMode) {
 				const darkImage = new Image();
-				darkImage.src = `${ARKIVE_BASE_URL}/static/favicon-dark.png`;
+				darkImage.src = `/favicon-dark.png`;
 
 				darkImage.onload = () => {
-					logo.src = `${ARKIVE_BASE_URL}/static/favicon-dark.png`;
+					logo.src = `/favicon-dark.png`;
 					logo.style.filter = ''; // Ensure no inversion is applied if favicon-dark.png exists
 				};
 
@@ -240,7 +240,7 @@
 								<img
 									id="logo"
 									crossorigin="anonymous"
-									src="{ARKIVE_BASE_URL}/static/favicon.png"
+									src="/favicon.png"
 									class="size-16 rounded-2xl"
 									alt="{$ARKIVE_NAME} logo"
 								/>

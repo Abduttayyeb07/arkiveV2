@@ -1,4 +1,5 @@
 from typing import Optional
+from pathlib import Path
 import io
 import base64
 import json
@@ -407,9 +408,15 @@ def get_model_profile_image(id: str, user=Depends(get_verified_user)):
                 except Exception as e:
                     pass
 
-        return FileResponse(f'{STATIC_DIR}/favicon.png')
+        logo_path = Path(f'{STATIC_DIR}/logo.png')
+        if logo_path.exists():
+            return FileResponse(str(logo_path))
+        raise HTTPException(status_code=404, detail='Model image not found')
     else:
-        return FileResponse(f'{STATIC_DIR}/favicon.png')
+        logo_path = Path(f'{STATIC_DIR}/logo.png')
+        if logo_path.exists():
+            return FileResponse(str(logo_path))
+        raise HTTPException(status_code=404, detail='Model image not found')
 
 
 ############################

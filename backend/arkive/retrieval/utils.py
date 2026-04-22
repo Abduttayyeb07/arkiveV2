@@ -923,6 +923,106 @@ def get_reranking_function(reranking_engine, reranking_model, reranking_function
         )
 
 
+async def filter_chunks_by_clearance(
+    sources: list[dict],
+    user_clearance: int,
+) -> list[dict]:
+    """
+    Strips chunks whose source document sensitivity level
+    exceeds the user's clearance level.
+
+    sources: the return value of get_sources_from_items() — each
+        source has singular keys 'document' (list[str]) and
+        'metadata' (list[dict]) already flattened one level.
+    user_clearance: UserContext.clearance_level (0-3)
+
+    Returns filtered sources with the same structure.
+    Never raises — on any error returns sources unmodified
+    and logs loudly.
+    """
+    from arkive.models.document_classifications import DocumentClassifications
+
+    try:
+        filtered = []
+        for source in sources:
+            documents = source.get('document') or []
+            metadatas = source.get('metadata') or []
+            distances = source.get('distances')
+
+            kept_docs = []
+            kept_meta = []
+            kept_distances = [] if distances is not None else None
+
+            for idx, (doc, meta) in enumerate(zip(documents, metadatas)):
+                # Chunks from -shared collections are already redacted —
+                # skip the clearance gate entirely for these.
+                if (meta or {}).get('_from_shared_collection'):
+                    kept_docs.append(doc)
+                    kept_meta.append(meta)
+                    if kept_distances is not None and idx < len(distances):
+                        kept_distances.append(distances[idx])
+                    continue
+
+                file_id = (
+                    (meta or {}).get('file_id')
+                    or (meta or {}).get('id')
+                    or None
+                )
+
+                if file_id is None:
+                    # No file_id — cannot check classification.
+                    # Include the chunk but log it.
+                    log.debug(
+                        '[retrieval_filter] chunk has no file_id '
+                        '— included without clearance check'
+                    )
+                    kept_docs.append(doc)
+                    kept_meta.append(meta)
+                    if kept_distances is not None and idx < len(distances):
+                        kept_distances.append(distances[idx])
+                    continue
+
+                classification = (
+                    DocumentClassifications
+                    .get_classification_by_file_id(file_id)
+                )
+
+                chunk_level = (
+                    classification.sensitivity_level
+                    if classification else 0
+                )
+
+                if chunk_level <= user_clearance:
+                    kept_docs.append(doc)
+                    kept_meta.append(meta)
+                    if kept_distances is not None and idx < len(distances):
+                        kept_distances.append(distances[idx])
+                else:
+                    log.warning(
+                        f'[retrieval_filter] stripped chunk '
+                        f'file_id={file_id} '
+                        f'chunk_level={chunk_level} '
+                        f'user_clearance={user_clearance} '
+                        f'— clearance insufficient'
+                    )
+
+            if kept_docs:
+                filtered_source = dict(source)
+                filtered_source['document'] = kept_docs
+                filtered_source['metadata'] = kept_meta
+                if kept_distances is not None:
+                    filtered_source['distances'] = kept_distances
+                filtered.append(filtered_source)
+
+        return filtered
+
+    except Exception as e:
+        log.exception(
+            f'[retrieval_filter] failed — returning unfiltered: {e}'
+        )
+        return sources
+
+
 async def get_sources_from_items(
     request,
     items,
@@ -1061,11 +1161,81 @@ async def get_sources_from_items(
                             ],
                         }
             else:
-                # Fallback to collection names
-                if item.get('legacy'):
-                    collection_names.append(f'{item["id"]}')
+                file_object = None
+                if item.get('id'):
+                    file_object = Files.get_file_by_id(item.get('id'))
+
+                file_meta = (file_object.meta or {}) if file_object else {}
+                file_data = (file_object.data or {}) if file_object else {}
+                file_content = file_data.get('content', '')
+                content_type = (file_meta.get('content_type') or '').lower()
+                filename = (file_object.filename or item.get('name') or '').lower() if file_object else ''
+
+                # Small CSV files behave more like structured tables than free-form prose.
+                # Sending the full extracted content is more reliable than top-k vector retrieval
+                # for exact row/range queries such as "2000-2005 winners".
+                if (
+                    file_object
+                    and file_content
+                    and len(file_content) <= 50000
+                    and (
+                        content_type in ('text/csv', 'application/csv', 'text/tab-separated-values')
+                        or filename.endswith('.csv')
+                    )
+                ):
+                    query_result = {
+                        'documents': [[file_content]],
+                        'metadatas': [
+                            [
+                                {
+                                    'file_id': item.get('id'),
+                                    'name': file_object.filename,
+                                    'source': file_object.filename,
+                                    'content_type': file_meta.get('content_type'),
+                                    'full_context_auto': True,
+                                }
+                            ]
+                        ],
+                    }
                 else:
-                    collection_names.append(f'file-{item["id"]}')
+                    # For non-admin users accessing a file they don't own that
+                    # belongs to a shared KB, serve redacted_content directly
+                    # instead of querying the raw file-{id} Chroma collection.
+                    _served_redacted = False
+                    if (
+                        user is not None
+                        and getattr(user, 'role', None) != 'admin'
+                        and file_object is not None
+                        and file_object.user_id != user.id
+                    ):
+                        _redacted_text = (file_object.data or {}).get('redacted_content')
+                        if _redacted_text:
+                            query_result = {
+                                'documents': [[_redacted_text]],
+                                'metadatas': [[{
+                                    'file_id': item.get('id'),
+                                    'name': file_object.filename,
+                                    'source': file_object.filename,
+                                    '_from_shared_collection': True,
+                                }]],
+                            }
+                            _served_redacted = True
+
+                    if not _served_redacted:
+                        # Non-admin user accessing a file they don't own but
+                        # redacted_content isn't ready yet (publish pending) —
+                        # deny access rather than falling back to raw collection.
+                        _denied_raw = (
+                            user is not None
+                            and getattr(user, 'role', None) != 'admin'
+                            and file_object is not None
+                            and file_object.user_id != user.id
+                        )
+                        if not _denied_raw:
+                            if item.get('legacy'):
+                                collection_names.append(f'{item["id"]}')
+                            else:
+                                collection_names.append(f'file-{item["id"]}')
 
         elif item.get('type') == 'collection':
             # Manual Full Mode Toggle for Collection
@@ -1096,13 +1266,29 @@ async def get_sources_from_items(
 
                         documents = []
                         metadatas = []
+                        _is_privileged = (
+                            user.role == 'admin'
+                            or knowledge_base.user_id == user.id
+                        )
                         for file in files:
-                            documents.append(file.data.get('content', ''))
+                            if _is_privileged:
+                                _content = file.data.get('content', '')
+                                _shared_flag = {}
+                            else:
+                                # Serve redacted version; fall back to raw only
+                                # if publish has not been run yet.
+                                _content = (
+                                    file.data.get('redacted_content')
+                                    or file.data.get('content', '')
+                                )
+                                _shared_flag = {'_from_shared_collection': True}
+                            documents.append(_content)
                             metadatas.append(
                                 {
                                     'file_id': file.id,
                                     'name': file.filename,
                                     'source': file.filename,
+                                    **_shared_flag,
                                 }
                             )
 
@@ -1115,7 +1301,21 @@ async def get_sources_from_items(
                     if item.get('legacy'):
                         collection_names = item.get('collection_names', [])
                     else:
-                        collection_names.append(item['id'])
+                        kb_id = item['id']
+                        # Non-admin, non-owner users query the redacted shared
+                        # collection so they only receive already-sanitised content.
+                        _is_kb_owner = (
+                            knowledge_base is not None
+                            and knowledge_base.user_id == user.id
+                        )
+                        if (
+                            user is not None
+                            and getattr(user, 'role', None) != 'admin'
+                            and not _is_kb_owner
+                        ):
+                            collection_names.append(f'{kb_id}-shared')
+                        else:
+                            collection_names.append(kb_id)
 
         elif item.get('docs'):
             # BYPASS_WEB_SEARCH_EMBEDDING_AND_RETRIEVAL
@@ -1153,6 +1353,24 @@ async def get_sources_from_items(
                 log.exception(e)
 
             extracted_collections.extend(collection_names)
+
+            # Tag chunks that came from a -shared collection so the clearance
+            # filter downstream can skip them (content is already redacted).
+            if query_result and any(
+                str(cn).endswith('-shared') for cn in collection_names
+            ):
+                try:
+                    _tagged: list[list[dict]] = []
+                    for _meta_list in (query_result.get('metadatas') or [[]]):
+                        _tagged.append(
+                            [
+                                {**(m or {}), '_from_shared_collection': True}
+                                for m in (_meta_list or [])
+                            ]
+                        )
+                    query_result = {**query_result, 'metadatas': _tagged}
+                except Exception as _tag_err:
+                    log.warning(f'[shared_tag] failed to tag chunk metadata: {_tag_err}')
 
         if query_result:
             if 'data' in item:

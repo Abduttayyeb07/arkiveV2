@@ -2,3 +2,33 @@ Generic single-database configuration.
 
 Create new migrations with
 DATABASE_URL=<replace with actual url> alembic revision --autogenerate -m "a description"
+
+## Gotchas
+
+### Two migration systems coexist
+
+Arkive has a legacy Peewee migration runner (`backend/arkive/internal/migrations/`,
+tracked in the `migratehistory` table) that runs automatically at app startup
+via `handle_peewee_migration()` in `internal/db.py`, AND this Alembic system
+(tracked in `alembic_version`). Both must be happy for the app to start.
+
+If you ever drop or truncate the `migratehistory` table, the Peewee runner
+will try to re-apply all 18 legacy migrations on next startup and crash with
+"column already exists" errors because the schema is already in that state.
+
+Fix: re-seed `migratehistory` with the 18 legacy migration names (they live
+in `backend/arkive/internal/migrations/` as `NNN_*.py`). Script:
+
+    INSERT INTO migratehistory (name, migrated_at)
+    SELECT unnest(ARRAY[
+      '001_initial_schema','002_add_local_sharing','003_add_auth_api_key',
+      '004_add_archived','005_add_updated_at',
+      '006_migrate_timestamps_and_charfields','007_add_user_last_active_at',
+      '008_add_memory','009_add_models','010_migrate_modelfiles_to_models',
+      '011_add_user_settings','012_add_tools','013_add_user_info',
+      '014_add_files','015_add_functions','016_add_valves_and_is_active',
+      '017_add_user_oauth_sub','018_add_function_is_global'
+    ]), NOW();
+
+Long term: the legacy Peewee runner should be retired so Alembic is the
+only source of truth.

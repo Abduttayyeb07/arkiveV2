@@ -2,7 +2,7 @@
 	import { ARKIVE_BASE_URL } from '$lib/constants';
 
 	export let className = 'size-8';
-	export let src = `${ARKIVE_BASE_URL}/static/favicon.png`;
+	export let src = `${ARKIVE_BASE_URL}/static/logo.png`;
 </script>
 
 <img

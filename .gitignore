@@ -85,3 +85,8 @@ arkive-512.png
 
 
 docs 
+# Local data backups
+backend/arkive_data.zip
+PHASE_2_5_TEST_RESULTS.md
+hr_record.txt
+

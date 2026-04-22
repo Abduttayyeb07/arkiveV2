@@ -115,6 +115,9 @@ from arkive.utils.code_interpreter import execute_code_jupyter
 from arkive.utils.payload import apply_system_prompt_to_body
 from arkive.utils.response import normalize_usage
 from arkive.utils.mcp.client import MCPClient
+from arkive.utils.user_context import get_user_context
+from arkive.utils.policy_engine import evaluate_request
+from arkive.utils.errors import PolicyDeniedException, policy_error_response
 
 
 from arkive.config import (
@@ -1947,6 +1950,85 @@ async def chat_completion_files_handler(
         except Exception as e:
             log.exception(e)
 
+        # ── RETRIEVAL FILTER (Phase 2.5 Control 2) ─────────────────
+        from arkive.retrieval.utils import filter_chunks_by_clearance
+        if hasattr(request.state, 'user_context'):
+            sources = await filter_chunks_by_clearance(
+                sources=sources,
+                user_clearance=request.state.user_context.clearance_level,
+            )
+        # ── END RETRIEVAL FILTER ────────────────────────────────────
+
+        # ── SENSITIVE TERMS EXTRACTION (Phase 2.5) ──────────────────
+        # Extract sensitive string values from retrieved chunks so the
+        # stream-time scanner can redact them before the LLM response
+        # reaches the frontend or is persisted.
+        #
+        # Admin bypass: admins have unrestricted visibility — they should
+        # always see raw values. Skipping extraction for admins is both
+        # a correctness requirement and a performance win (avoids scanning
+        # every chunk on privileged queries).
+        if getattr(user, 'role', None) == 'admin':
+            # Explicitly clear any leftover terms from a previous request
+            # that may have been attached to this request state object.
+            request.state.sensitive_terms = set()
+            log.debug('[sensitive_terms] skipped — admin user, raw visibility')
+        else:
+            try:
+                from arkive.utils.policy_engine import extract_sensitive_terms
+                from arkive.models.document_classifications import (
+                    DocumentClassifications,
+                )
+
+                _sensitive_terms: set[str] = set()
+
+                for _source in sources:
+                    _chunks = _source.get('document') or []
+                    _metas  = _source.get('metadata') or []
+
+                    for _chunk, _meta in zip(_chunks, _metas):
+                        _file_id = (
+                            (_meta or {}).get('file_id')
+                            or (_meta or {}).get('id')
+                            or None
+                        )
+                        if not _file_id:
+                            continue
+
+                        try:
+                            _clf = DocumentClassifications.get_classification_by_file_id(
+                                _file_id
+                            )
+                            _chunk_level = _clf.sensitivity_level if _clf else 0
+                        except Exception as _db_err:
+                            log.warning(
+                                f'[sensitive_terms] DB lookup failed for '
+                                f'file_id={_file_id}: {_db_err} — treating as level 0'
+                            )
+                            _chunk_level = 0
+
+                        if _chunk_level >= 1:
+                            _terms = extract_sensitive_terms(_chunk)
+                            _sensitive_terms.update(_terms)
+
+                request.state.sensitive_terms = _sensitive_terms
+
+                log.debug(
+                    f'[sensitive_terms] extracted {len(_sensitive_terms)} terms '
+                    f'from {len(sources)} source(s)'
+                )
+
+            except Exception as _e:
+                # Fail safe: clear terms so the scanner doesn't fire on
+                # stale state from a previous request. Log loudly because
+                # a failure here can leak PII into the response.
+                log.exception(
+                    f'[sensitive_terms] extraction pipeline failed — '
+                    f'clearing terms to prevent stale-state leak: {_e}'
+                )
+                request.state.sensitive_terms = set()
+        # ── END SENSITIVE TERMS EXTRACTION ─────────────────────────
+
         log.debug(f'rag_contexts:sources: {sources}')
 
         unique_ids = set()
@@ -2297,6 +2379,25 @@ async def process_chat_payload(request, form_data, user, metadata, model):
         form_data['files'] = files
 
     variables = form_data.pop('variables', None)
+
+    # ── POLICY GATE ────────────────────────────────────────────────
+    # chat_completion pre-evaluates the policy so blocks/flags can return
+    # a structured 403 on the HTTP response. If that path ran, reuse its
+    # result here instead of writing a second audit row.
+    policy_result = getattr(request.state, 'policy', None)
+    if policy_result is None:
+        user_context = await get_user_context(user)
+        collection_ids = [f.get('id') for f in form_data.get('files', []) if f.get('id')] or None
+        policy_result = await evaluate_request(
+            user_context=user_context,
+            query=user_message,
+            collection_ids=collection_ids,
+        )
+        request.state.policy = policy_result
+        request.state.user_context = user_context
+    if not policy_result.permitted:
+        raise PolicyDeniedException(policy_result)
+    # ── END POLICY GATE ────────────────────────────────────────────
 
     # Process the form_data through the pipeline
     try:
@@ -2712,6 +2813,18 @@ async def process_chat_payload(request, form_data, user, metadata, model):
     # If context is not empty, insert it into the messages
     if sources and prompt:
         form_data['messages'] = apply_source_context_to_messages(request, form_data['messages'], sources, prompt)
+
+        # For non-admin users, inject a system-level instruction so the model
+        # does not refuse to answer questions about already-redacted documents.
+        if getattr(user, 'role', None) != 'admin':
+            form_data['messages'] = add_or_update_system_message(
+                'The documents in this conversation have been processed for '
+                'compliance by the platform before reaching you. Any sensitive '
+                'information has already been redacted and replaced with '
+                'placeholder tokens. Answer the user\'s questions based on '
+                'the content available in the provided context.',
+                form_data['messages'],
+            )
 
     # If there are citations, add them to the data_items
     sources = [
@@ -3760,6 +3873,33 @@ async def streaming_chat_response_handler(response, ctx):
 
                                     value = delta.get('content')
 
+                                    # Stream-time redaction: replace sensitive
+                                    # terms extracted from retrieved chunks before
+                                    # the chunk is emitted to the frontend or
+                                    # persisted. Skipped entirely for admins —
+                                    # admins have full raw visibility by design.
+                                    # The guard on user.role is the authoritative
+                                    # check; the empty sensitive_terms set for
+                                    # admins (set above) is defence-in-depth.
+                                    _is_admin = getattr(user, 'role', None) == 'admin'
+                                    _st = getattr(request.state, 'sensitive_terms', set())
+                                    if value and _st and not _is_admin:
+                                        try:
+                                            for _term in _st:
+                                                if _term and _term in value:
+                                                    value = value.replace(_term, '[REDACTED]')
+                                            delta['content'] = value
+                                        except Exception as _redact_err:
+                                            # Never let a redaction bug silence the
+                                            # stream. Log and pass through the raw
+                                            # chunk — the extraction-side guard means
+                                            # this path should never be reached for
+                                            # non-admin users in normal operation.
+                                            log.exception(
+                                                f'[stream_redact] failed on chunk — '
+                                                f'emitting unmodified: {_redact_err}'
+                                            )
+
                                     reasoning_content = (
                                         delta.get('reasoning_content')
                                         or delta.get('reasoning')
@@ -4601,6 +4741,59 @@ async def streaming_chat_response_handler(response, ctx):
                     if item.get('status') == 'in_progress':
                         item['status'] = 'completed'
 
+                # ── RESPONSE SCAN (Phase 2.5 Control 3) ───────────────────
+                # Context-aware scan — exact match on known sensitive terms
+                # first, then narrow Presidio fallback for Level 3 types.
+                # Never runs broad NER on LLM output.
+                #
+                # Admin bypass: admins have full raw visibility. Skip the
+                # entire scan — both the exact-term pass and the Presidio
+                # fallback — so admins always receive unmodified responses.
+                _scan_user = ctx.get('user')
+                _is_admin_response = getattr(_scan_user, 'role', None) == 'admin'
+
+                if _is_admin_response:
+                    log.debug('[response_scan] skipped — admin user, raw visibility')
+                else:
+                    try:
+                        from arkive.utils.policy_engine import scan_response
+
+                        ctx_request = ctx['request']
+                        _sensitive_terms = getattr(
+                            ctx_request.state, 'sensitive_terms', set()
+                        )
+
+                        # Redact per output item so structured output stays valid
+                        # and DB write + event emitter carry the redacted text.
+                        _any_redacted = False
+                        for _item in output:
+                            if not isinstance(_item, dict):
+                                continue
+                            _parts = _item.get('content', [])
+                            if not isinstance(_parts, list):
+                                continue
+                            for _part in _parts:
+                                if (
+                                    isinstance(_part, dict)
+                                    and _part.get('type') == 'output_text'
+                                ):
+                                    _original = _part.get('text', '') or ''
+                                    _scanned = scan_response(
+                                        _original,
+                                        _sensitive_terms,
+                                    )
+                                    if _scanned != _original:
+                                        _part['text'] = _scanned
+                                        _any_redacted = True
+
+                        # Keep content nonlocal in sync for webhook block below.
+                        if _any_redacted:
+                            content = serialize_output(output)
+
+                    except Exception as _e:
+                        log.exception(f'[response_scan] failed: {_e}')
+                # ── END RESPONSE SCAN ──────────────────────────────────────
+
                 title = Chats.get_chat_title_by_id(metadata['chat_id'])
                 data = {
                     'done': True,
@@ -4609,30 +4802,19 @@ async def streaming_chat_response_handler(response, ctx):
                     'title': title,
                 }
 
-                if not ENABLE_REALTIME_CHAT_SAVE:
-                    # Save message in the database
-                    Chats.upsert_message_to_chat_by_id_and_message_id(
-                        metadata['chat_id'],
-                        metadata['message_id'],
-                        {
-                            'done': True,
-                            'content': serialize_output(output),
-                            'output': output,
-                            **({'usage': usage} if usage else {}),
-                        },
-                    )
-                elif usage:
-                    Chats.upsert_message_to_chat_by_id_and_message_id(
-                        metadata['chat_id'],
-                        metadata['message_id'],
-                        {'done': True, 'usage': usage},
-                    )
-                else:
-                    Chats.upsert_message_to_chat_by_id_and_message_id(
-                        metadata['chat_id'],
-                        metadata['message_id'],
-                        {'done': True},
-                    )
+                # Always write final redacted content to DB regardless of
+                # ENABLE_REALTIME_CHAT_SAVE so the stored message never
+                # contains raw SSNs/emails even when real-time saving is on.
+                Chats.upsert_message_to_chat_by_id_and_message_id(
+                    metadata['chat_id'],
+                    metadata['message_id'],
+                    {
+                        'done': True,
+                        'content': serialize_output(output),
+                        'output': output,
+                        **({'usage': usage} if usage else {}),
+                    },
+                )
 
                 # Send a webhook notification if the user is not active
                 if request.app.state.config.ENABLE_USER_WEBHOOKS and not Users.is_user_active(user.id):

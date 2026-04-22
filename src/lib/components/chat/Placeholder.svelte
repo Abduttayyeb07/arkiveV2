@@ -36,8 +36,8 @@
 
 	export let autoScroll = false;
 
-	export let atSelectedModel: Model | undefined;
-	export let selectedModels: [''];
+	export let atSelectedModel: import('$lib/stores/index').Model | undefined;
+	export let selectedModels: string[];
 
 	export let history;
 
@@ -58,8 +58,6 @@
 	export let onUpload: Function = (e) => {};
 	export const onSelect = (_e: unknown) => {};
 	export let onChange = (e) => {};
-
-	export let toolServers = [];
 
 	export let dragged = false;
 
@@ -127,10 +125,11 @@
 										<img
 											src={`${ARKIVE_API_BASE_URL}/models/model/profile/image?id=${model?.id}&lang=${$i18n.language}`}
 											class=" size-9 @sm:size-10 rounded-full border-[1px] border-gray-100 dark:border-none"
+											alt={model?.name ?? model?.id ?? 'model'}
 											aria-hidden="true"
 											draggable="false"
 											on:error={(e) => {
-												e.currentTarget.src = '/favicon.png';
+												(e.currentTarget as HTMLImageElement).src = '/favicon.png';
 											}}
 										/>
 									</button>
@@ -220,7 +219,6 @@
 					bind:showCommands
 					bind:dragged
 					{pendingOAuthTools}
-					{toolServers}
 					{stopResponse}
 					{createMessagePair}
 					placeholder={$i18n.t('How can I help you today?')}

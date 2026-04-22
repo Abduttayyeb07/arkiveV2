@@ -1832,15 +1832,11 @@
 			}
 		}
 
-		if (history?.currentId) {
-			const currentMessage = history.messages[history.currentId];
-
-			if (currentMessage.error && !currentMessage.content) {
-				// Error in response
-				toast.error($i18n.t(`Oops! There was an error in the previous response.`));
-				return;
-			}
-		}
+		// Previously we blocked submission when the last assistant message had
+		// an error and no content. That turned a policy block (or any transient
+		// failure) into a frozen chat — the user couldn't rephrase or continue.
+		// Now we let the new prompt post as a child of the errored message so
+		// the conversation can move forward.
 
 		messageInput?.setText('');
 		prompt = '';
@@ -2724,21 +2720,21 @@
 				<div
 					class="absolute top-0 left-0 w-full h-full bg-cover bg-center bg-no-repeat"
 					style="background-image: url({$selectedFolder?.meta?.background_image_url})  "
-				/>
+				></div>
 
 				<div
 					class="absolute top-0 left-0 w-full h-full bg-linear-to-t from-white to-white/85 dark:from-gray-900 dark:to-gray-900/90 z-0"
-				/>
+				></div>
 			{:else if $settings?.backgroundImageUrl ?? $config?.license_metadata?.background_image_url ?? null}
 				<div
 					class="absolute top-0 left-0 w-full h-full bg-cover bg-center bg-no-repeat"
 					style="background-image: url({$settings?.backgroundImageUrl ??
 						$config?.license_metadata?.background_image_url})  "
-				/>
+				></div>
 
 				<div
 					class="absolute top-0 left-0 w-full h-full bg-linear-to-t from-white to-white/85 dark:from-gray-900 dark:to-gray-900/90 z-0"
-				/>
+				></div>
 			{/if}
 
 			<PaneGroup direction="horizontal" class="w-full h-full">
@@ -2853,7 +2849,6 @@
 									bind:atSelectedModel
 									bind:showCommands
 									bind:dragged
-									toolServers={$toolServers}
 									{generating}
 									{stopResponse}
 									{createMessagePair}
@@ -2937,7 +2932,6 @@
 									bind:showCommands
 									bind:dragged
 									{pendingOAuthTools}
-									toolServers={$toolServers}
 									{stopResponse}
 									{createMessagePair}
 									{onSelect}

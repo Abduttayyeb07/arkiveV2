@@ -1328,6 +1328,7 @@ def save_docs_to_vector_db(
     split: bool = True,
     add: bool = False,
     user=None,
+    apply_redaction: bool = False,
 ) -> bool:
     def _get_docs_info(docs: list[Document]) -> str:
         docs_info = set()
@@ -1423,6 +1424,82 @@ def save_docs_to_vector_db(
 
     if len(docs) == 0:
         raise ValueError(ERROR_MESSAGES.EMPTY_CONTENT)
+
+    # ── PII REDACTION (OPT-IN) ────────────────────────────────────────────
+    # Only runs when apply_redaction=True. Used by the publish/share flow
+    # to build the `{kb_id}-shared` collection. Private uploads (admin raw
+    # store) skip this entirely and keep raw chunks.
+    #
+    # Three-pass detection (Presidio + regex + heuristic) → type-token
+    # redaction. Fail-closed: any pipeline error falls back to blanket
+    # digit masking (`\d{6,}` → [REDACTED]) so raw PII cannot leak into a
+    # shared collection.
+    if apply_redaction:
+        try:
+            from arkive.utils.policy_engine import (
+                scan_chunk_entities,
+                enhance_entities_with_context,
+                redact_chunk,
+            )
+
+            _doc_pattern_re = re.compile(r'\d{8,}')
+            _fallback_re    = re.compile(r'\d{6,}')
+
+            for _doc in docs:
+                _raw = _doc.page_content or ''
+                if not _raw.strip():
+                    continue
+
+                # TELEMETRY ONLY — not a guarantee flag.
+                _doc.metadata['doc_has_sensitive_patterns'] = bool(_doc_pattern_re.search(_raw))
+                _doc.metadata.setdefault('source_type', 'upload')
+
+                try:
+                    _base    = scan_chunk_entities(_raw)
+                    _final   = enhance_entities_with_context(_raw, _base)
+                    _redacted = redact_chunk(_raw, _final) if _final else _raw
+
+                    _doc.page_content = _redacted
+                    _doc.metadata['redaction_entities'] = json.dumps([
+                        {
+                            'type':       e['type'].value,
+                            'start':      e['start'],
+                            'end':        e['end'],
+                            'confidence': e['confidence'],
+                            'source':     e['source'],
+                        }
+                        for e in _final
+                    ])
+
+                    _added_heuristic = any(e['source'] == 'heuristic' for e in _final)
+                    if _final:
+                        log.info(
+                            f'[ingest_redact] entities={len(_final)} '
+                            f'types={[e["type"].value for e in _final]} '
+                            f'heuristic_added={_added_heuristic}'
+                        )
+                    else:
+                        log.debug('[ingest_redact] chunk clean')
+
+                except Exception as _chunk_err:
+                    log.exception(
+                        f'[ingest_redact][SLEDGEHAMMER] chunk fallback fired — '
+                        f'pipeline error, blanket digit masking applied: {_chunk_err}'
+                    )
+                    _doc.page_content = _fallback_re.sub('[REDACTED]', _raw)
+                    _doc.metadata['redaction_entities'] = '[]'
+                    _doc.metadata['redaction_fallback'] = True
+
+        except Exception as _re_err:
+            log.exception(
+                f'[ingest_redact][SLEDGEHAMMER] module failure, '
+                f'blanket digit masking applied to all chunks: {_re_err}'
+            )
+            for _doc in docs:
+                if _doc.page_content:
+                    _doc.page_content = re.sub(r'\d{6,}', '[REDACTED]', _doc.page_content)
+                    _doc.metadata.setdefault('redaction_fallback', True)
+    # ── END PII REDACTION ─────────────────────────────────────────────────
 
     texts = [sanitize_text_for_db(doc.page_content) for doc in docs]
     metadatas = [
@@ -1679,6 +1756,69 @@ def process_file(
                 {'content': text_content},
                 db=db,
             )
+
+            # ── INGESTION SCAN (Phase 2.5 Control 1) ──────────────────
+            # Scan extracted text before chunking or embedding.
+            # Classifies the document and stores sensitivity level so
+            # the retrieval filter (Control 2) can enforce clearance.
+            try:
+                from arkive.utils.policy_engine import (
+                    detect_entities,
+                    classify_query_sensitivity,
+                )
+                from arkive.models.document_classifications import (
+                    DocumentClassifications,
+                    DocumentClassificationForm,
+                )
+                import time as _time
+
+                # Scan the full extracted text
+                _scan_text = text_content[:8000]  # cap at 8000 chars for speed
+                _entities = detect_entities(_scan_text)
+                _sensitivity = classify_query_sensitivity(_entities)
+                _entity_dicts = [
+                    {
+                        'entity_type': e.entity_type,
+                        'start': e.start,
+                        'end': e.end,
+                        'score': e.score,
+                    }
+                    for e in _entities
+                ]
+
+                # Derive topic labels from entity types present
+                _topic_labels = list({e.entity_type for e in _entities})
+
+                DocumentClassifications.insert_or_update_classification(
+                    file_id=file.id,
+                    form_data=DocumentClassificationForm(
+                        sensitivity_level=_sensitivity,
+                        detected_entities=_entity_dicts,
+                        topic_labels=_topic_labels,
+                        classification_source='auto',
+                    ),
+                )
+
+                if _sensitivity >= 2:
+                    log.warning(
+                        f'[ingestion_scan] file_id={file.id} '
+                        f'sensitivity={_sensitivity} '
+                        f'entities={[e.entity_type for e in _entities]} '
+                        f'— document tagged, retrieval filter will enforce clearance'
+                    )
+                else:
+                    log.debug(
+                        f'[ingestion_scan] file_id={file.id} '
+                        f'sensitivity={_sensitivity} — clean'
+                    )
+            except Exception as _e:
+                # Scan failure must never block ingestion.
+                # Log loudly — a missed classification is a compliance risk.
+                log.exception(
+                    f'[ingestion_scan] failed for file_id={file.id}: {_e}'
+                )
+            # ── END INGESTION SCAN ─────────────────────────────────────
+
             hash = calculate_sha256_string(text_content)
 
             if request.app.state.config.BYPASS_EMBEDDING_AND_RETRIEVAL:
@@ -1805,6 +1945,196 @@ async def process_text(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=ERROR_MESSAGES.DEFAULT(),
         )
+
+
+def process_knowledge_publish(
+    request: Request,
+    knowledge_id: str,
+    user,
+) -> dict:
+    """
+    Build the `{knowledge_id}-shared` redacted collection from the raw
+    `{knowledge_id}` collection. Admins call this when they publish a
+    knowledge base to share with non-admin users.
+
+    Reads every chunk already embedded in the raw collection, re-runs the
+    PII redaction pipeline, and writes the redacted chunks into the shared
+    collection (overwriting any previous publish). No re-extraction or
+    re-splitting — we reuse the chunks that were stored at ingest.
+    """
+    raw_collection    = knowledge_id
+    shared_collection = f'{knowledge_id}-shared'
+
+    raw = VECTOR_DB_CLIENT.get(collection_name=raw_collection)
+    if raw is None or not raw.ids or not raw.ids[0]:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f'No chunks found in raw collection {raw_collection}',
+        )
+
+    ids       = raw.ids[0]
+    documents = raw.documents[0]
+    metadatas = raw.metadatas[0] if raw.metadatas and raw.metadatas[0] else [{}] * len(ids)
+
+    docs = [
+        Document(
+            page_content=documents[idx] or '',
+            metadata={**(metadatas[idx] or {})},
+        )
+        for idx in range(len(ids))
+    ]
+
+    log.info(
+        f'[publish] knowledge_id={knowledge_id} '
+        f'raw_chunks={len(docs)} → building {shared_collection}'
+    )
+
+    # split=False: the chunks were already split at ingest.
+    # overwrite=True: a re-publish replaces the previous shared snapshot.
+    # apply_redaction=True: everything written to *-shared goes through PII redaction.
+    result = save_docs_to_vector_db(
+        request,
+        docs=docs,
+        collection_name=shared_collection,
+        overwrite=True,
+        split=False,
+        add=False,
+        user=user,
+        apply_redaction=True,
+    )
+
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f'Failed to build shared collection {shared_collection}',
+        )
+
+    log.info(
+        f'[publish] knowledge_id={knowledge_id} '
+        f'shared collection ready ({len(docs)} redacted chunks)'
+    )
+
+    # ── REDACT FULL FILE CONTENT FOR FILE VIEWER ──────────────────────────
+    # The Chroma -shared collection protects RAG chat queries. The file
+    # viewer endpoint (GET /files/{id}/data/content) reads file.data.content
+    # directly from the DB. We run the same redaction pipeline on the full
+    # extracted text for every file in this KB and store the result in
+    # file.data.redacted_content so the file viewer can serve it to
+    # non-admin users instead of the raw document.
+    #
+    # Failure here does NOT abort the publish — the Chroma collection is
+    # already built and chat queries are protected. The file viewer will
+    # return 403 until admin re-publishes successfully.
+    _files_redacted = 0
+    _files_failed   = 0
+    try:
+        import asyncio as _asyncio
+        from arkive.utils.policy_engine import (
+            scan_chunk_entities,
+            enhance_entities_with_context,
+            redact_chunk,
+        )
+        from arkive.utils.llm_classifier import llm_extract_entities
+
+        _fallback_re = re.compile(r'\d{6,}')
+        kb_files = Knowledges.get_files_by_id(knowledge_id)
+
+        if not kb_files:
+            log.warning(
+                f'[publish] no files found for knowledge_id={knowledge_id} '
+                f'— file viewer redaction skipped'
+            )
+        else:
+            for _kb_file in kb_files:
+                _raw_content = (_kb_file.data or {}).get('content', '')
+                if not _raw_content:
+                    log.debug(
+                        f'[publish] file_id={_kb_file.id} has no content — skipping'
+                    )
+                    continue
+
+                try:
+                    # Presidio pass — structured PII: SSN, IBAN, phone, credit card
+                    _presidio_entities = scan_chunk_entities(_raw_content)
+                    _presidio_entities = enhance_entities_with_context(_raw_content, _presidio_entities)
+
+                    # LLM pass — semantic PII: salary, medical conditions, CNIC, credentials
+                    # Returns entity dicts in the same format — merging avoids double-rewrite
+                    _llm_entities = _asyncio.run(llm_extract_entities(_raw_content))
+
+                    # Merge: deduplicate overlapping spans (Presidio wins on overlap)
+                    _all_entities = list(_presidio_entities)
+                    for _le in _llm_entities:
+                        _overlaps_existing = any(
+                            not (_le['end'] <= _pe['start'] or _le['start'] >= _pe['end'])
+                            for _pe in _all_entities
+                        )
+                        if not _overlaps_existing:
+                            _all_entities.append(_le)
+
+                    # Sort by start position as required by redact_chunk
+                    _all_entities.sort(key=lambda d: d['start'])
+
+                    _redacted = redact_chunk(_raw_content, _all_entities) if _all_entities else _raw_content
+
+                    log.info(
+                        f'[publish] file_id={_kb_file.id} '
+                        f'redacted {len(_presidio_entities)} presidio + {len(_llm_entities)} llm entities'
+                    )
+
+                except Exception as _chunk_err:
+                    # Sledgehammer fallback — pipeline failed for this file.
+                    # Blanket-replace 6+ digit runs. Viewer quality degrades
+                    # but raw PII will not be exposed.
+                    log.exception(
+                        f'[publish][SLEDGEHAMMER] redaction pipeline failed for '
+                        f'file_id={_kb_file.id}: {_chunk_err} '
+                        f'— falling back to blanket digit masking'
+                    )
+                    _redacted = _fallback_re.sub('[REDACTED]', _raw_content)
+
+                try:
+                    with get_db() as _session:
+                        Files.update_file_data_by_id(
+                            _kb_file.id,
+                            {'redacted_content': _redacted},
+                            db=_session,
+                        )
+                    _files_redacted += 1
+                    log.debug(
+                        f'[publish] stored redacted_content for file_id={_kb_file.id}'
+                    )
+                except Exception as _db_err:
+                    _files_failed += 1
+                    log.exception(
+                        f'[publish] failed to persist redacted_content for '
+                        f'file_id={_kb_file.id}: {_db_err}'
+                    )
+
+    except Exception as _outer_err:
+        # Import failure or unexpected error — log and continue.
+        log.exception(
+            f'[publish] file viewer redaction stage failed for '
+            f'knowledge_id={knowledge_id}: {_outer_err} '
+            f'— Chroma collection is intact; re-publish to retry file viewer redaction'
+        )
+
+    log.info(
+        f'[publish] knowledge_id={knowledge_id} complete — '
+        f'chroma_chunks={len(docs)} '
+        f'files_redacted={_files_redacted} '
+        f'files_failed={_files_failed}'
+    )
+    # ── END REDACT FULL FILE CONTENT ──────────────────────────────────────
+
+    return {
+        'status': True,
+        'knowledge_id': knowledge_id,
+        'shared_collection': shared_collection,
+        'chunk_count': len(docs),
+        'files_redacted': _files_redacted,
+        'files_failed': _files_failed,
+    }
 
 
 @router.post('/process/youtube')
@@ -2329,19 +2659,28 @@ async def process_web_search(request: Request, form_data: SearchForm, user=Depen
 
 def _validate_collection_access(collection_names: list[str], user) -> None:
     """
-    Prevent users from querying collections they don't own.
-    Enforces ownership on user-memory-* and file-* collections.
-    Admins bypass this check.
+    Prevent users from querying collections they don't own, and route
+    non-admin knowledge-base queries to the redacted `{kb_id}-shared`
+    collection. Admins bypass the rewrite and see the raw collection.
+
+    - user-memory-*   → ownership check
+    - file-*          → file-level access check
+    - everything else → treated as a knowledge-base id. For non-admins
+                        the list is mutated in place to append `-shared`
+                        so all retrieval hits the published collection.
+
+    Mutates `collection_names` in place for non-admin callers.
     """
     if user.role == 'admin':
         return
 
-    for name in collection_names:
-        if name.startswith('user-memory-') and name != f'user-memory-{user.id}':
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
-            )
+    for idx, name in enumerate(collection_names):
+        if name.startswith('user-memory-'):
+            if name != f'user-memory-{user.id}':
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
+                )
         elif name.startswith('file-'):
             file_id = name[len('file-') :]
             if not has_access_to_file(
@@ -2353,6 +2692,12 @@ def _validate_collection_access(collection_names: list[str], user) -> None:
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
                 )
+        else:
+            # Treat as a knowledge-base id. Non-admins only see the
+            # published/redacted shared collection. Idempotent — don't
+            # double-append if the caller already passed `-shared`.
+            if not name.endswith('-shared'):
+                collection_names[idx] = f'{name}-shared'
 
 
 class QueryDocForm(BaseModel):

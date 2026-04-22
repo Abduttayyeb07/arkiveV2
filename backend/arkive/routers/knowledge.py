@@ -25,6 +25,7 @@ from arkive.routers.retrieval import (
     ProcessFileForm,
     process_files_batch,
     BatchProcessFilesForm,
+    process_knowledge_publish,
 )
 from arkive.storage.provider import Storage
 
@@ -233,7 +234,30 @@ async def search_knowledge_files(
 
     filter['user_id'] = user.id
 
-    return Knowledges.search_knowledge_files(filter=filter, skip=skip, limit=limit, db=db)
+    result = Knowledges.search_knowledge_files(filter=filter, skip=skip, limit=limit, db=db)
+
+    # Redact data.content for files from KBs the user doesn't own.
+    if user.role != 'admin':
+        from arkive.routers.files import _get_redacted_content_for_non_admin
+        from arkive.models.files import Files as _Files
+        import copy
+        patched_items = []
+        for item in result.items:
+            try:
+                _file = _Files.get_file_by_id(item.id, db=db)
+                if _file:
+                    _redacted = _get_redacted_content_for_non_admin(_file, user, db)
+                    if _redacted is not None:
+                        _patched = copy.copy(item)
+                        _patched.data = {**(item.data or {}), 'content': _redacted}
+                        patched_items.append(_patched)
+                        continue
+            except Exception:
+                pass
+            patched_items.append(item)
+        result = result.model_copy(update={'items': patched_items})
+
+    return result
 
 
 ############################
@@ -542,10 +566,87 @@ async def update_knowledge_access_by_id(
 
     AccessGrants.set_access_grants('knowledge', id, form_data.access_grants, db=db)
 
+    # Auto-publish whenever the KB has active sharing grants.
+    # Creates the -{id}-shared Chroma collection and stamps redacted_content
+    # on all files so shared users get filtered results without a manual step.
+    if form_data.access_grants:
+        import asyncio
+
+        async def _background_publish():
+            try:
+                await run_in_threadpool(process_knowledge_publish, request, id, user)
+                log.info(f'[auto_publish] KB {id} published after access grant update')
+            except Exception as _e:
+                log.exception(f'[auto_publish] failed for KB {id}: {_e}')
+
+        asyncio.ensure_future(_background_publish())
+
     return KnowledgeFilesResponse(
         **Knowledges.get_knowledge_by_id(id=id, db=db).model_dump(),
         files=Knowledges.get_file_metadatas_by_id(id, db=db),
     )
+
+
+############################
+# PublishKnowledgeById
+############################
+
+
+class KnowledgePublishForm(BaseModel):
+    access_grants: Optional[list[dict]] = None
+
+
+@router.post('/{id}/publish')
+async def publish_knowledge_by_id(
+    request: Request,
+    id: str,
+    form_data: KnowledgePublishForm,
+    user=Depends(get_admin_user),
+    db: Session = Depends(get_session),
+):
+    """
+    Publish a knowledge base: build the redacted `{id}-shared` collection
+    from the raw `{id}` collection so non-admin users can query it.
+
+    Admin-only. The raw collection is left untouched — admins continue to
+    see unredacted chunks when they query `{id}` directly. Optionally sets
+    access grants atomically so publish + share happen in one call.
+    """
+    knowledge = Knowledges.get_knowledge_by_id(id=id, db=db)
+    if not knowledge:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=ERROR_MESSAGES.NOT_FOUND,
+        )
+
+    try:
+        result = await run_in_threadpool(
+            process_knowledge_publish,
+            request,
+            id,
+            user,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.exception(f'[publish] failed for knowledge_id={id}: {e}')
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=ERROR_MESSAGES.DEFAULT(e),
+        )
+
+    if form_data.access_grants is not None:
+        grants = filter_allowed_access_grants(
+            request.app.state.config.USER_PERMISSIONS,
+            user.id,
+            user.role,
+            form_data.access_grants,
+            'sharing.public_knowledge',
+        )
+        AccessGrants.set_access_grants('knowledge', id, grants, db=db)
+        result['access_grants_updated'] = True
+
+    return result
 
 
 ############################
@@ -602,7 +703,33 @@ async def get_knowledge_files_by_id(
     if direction:
         filter['direction'] = direction
 
-    return Knowledges.search_files_by_id(id, user.id, filter=filter, skip=skip, limit=limit, db=db)
+    result = Knowledges.search_files_by_id(id, user.id, filter=filter, skip=skip, limit=limit, db=db)
+
+    # Non-admin users who don't own the KB see redacted file content.
+    # Replace data.content with the published redacted version so the
+    # workspace file viewer and chat modal never expose raw PII.
+    _is_privileged = user.role == 'admin' or knowledge.user_id == user.id
+    if not _is_privileged:
+        from arkive.routers.files import _get_redacted_content_for_non_admin
+        from arkive.models.files import Files as _Files
+        import copy
+        patched_items = []
+        for item in result.items:
+            try:
+                _file = _Files.get_file_by_id(item.id, db=db)
+                if _file:
+                    _redacted = _get_redacted_content_for_non_admin(_file, user, db)
+                    if _redacted is not None:
+                        _patched = copy.copy(item)
+                        _patched.data = {**(item.data or {}), 'content': _redacted}
+                        patched_items.append(_patched)
+                        continue
+            except Exception:
+                pass
+            patched_items.append(item)
+        result = result.model_copy(update={'items': patched_items})
+
+    return result
 
 
 ############################
@@ -674,6 +801,26 @@ def add_file_to_knowledge_by_id(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
+
+    # If KB is already shared, republish so the new file gets redacted and added to -shared collection
+    existing_grants = AccessGrants.get_grants_by_resource(resource_type='knowledge', resource_id=id, db=db)
+    if existing_grants:
+        import asyncio
+
+        async def _background_publish_add():
+            try:
+                await run_in_threadpool(process_knowledge_publish, request, id, user)
+                log.info(f'[auto_publish] KB {id} republished after file add')
+            except Exception as _e:
+                log.exception(f'[auto_publish] file-add republish failed for KB {id}: {_e}')
+
+        # This endpoint is a sync def (runs in threadpool). Schedule the coroutine
+        # onto the main event loop from this thread without blocking it.
+        _loop = getattr(request.app.state, 'main_loop', None)
+        if _loop and _loop.is_running():
+            asyncio.run_coroutine_threadsafe(_background_publish_add(), _loop)
+        else:
+            log.warning(f'[auto_publish] main_loop unavailable — skipping republish for KB {id}')
 
     if knowledge:
         return KnowledgeFilesResponse(
@@ -1035,6 +1182,21 @@ async def add_files_to_knowledge_batch(
     successful_file_ids = [r.file_id for r in result.results if r.status == 'completed']
     for file_id in successful_file_ids:
         Knowledges.add_file_to_knowledge_by_id(knowledge_id=id, file_id=file_id, user_id=user.id, db=db)
+
+    # If KB is already shared, republish so new files get redacted and land in -shared collection
+    existing_grants = AccessGrants.get_grants_by_resource(resource_type='knowledge', resource_id=id, db=db)
+    if existing_grants and successful_file_ids:
+        import asyncio
+
+        async def _background_publish_batch():
+            try:
+                await run_in_threadpool(process_knowledge_publish, request, id, user)
+                log.info(f'[auto_publish] KB {id} republished after batch file add')
+            except Exception as _e:
+                log.exception(f'[auto_publish] batch file-add republish failed for KB {id}: {_e}')
+
+        # Batch endpoint is async def — ensure_future is safe here
+        asyncio.ensure_future(_background_publish_batch())
 
     # If there were any errors, include them in the response
     if result.errors:

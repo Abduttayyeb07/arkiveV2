@@ -680,3 +680,30 @@ async def delete_user_by_id(user_id: str, user=Depends(get_admin_user), db: Sess
 @router.get('/{user_id}/groups')
 async def get_user_groups_by_id(user_id: str, user=Depends(get_admin_user), db: Session = Depends(get_session)):
     return Groups.get_groups_by_member_id(user_id, db=db)
+
+
+# ── User Policy (clearance / department / permissions) ─────────────────────
+
+@router.get('/{user_id}/policy')
+async def get_user_policy(user_id: str, user=Depends(get_admin_user)):
+    from arkive.models.user_policies import UserPolicies, UserPolicyModel
+    policy = UserPolicies.get_user_policy_by_user_id(user_id)
+    if policy is None:
+        raise HTTPException(status_code=404, detail='No policy found for this user')
+    return policy
+
+
+@router.post('/{user_id}/policy')
+async def upsert_user_policy(user_id: str, form_data: dict, user=Depends(get_admin_user)):
+    from arkive.models.user_policies import UserPolicies, UserPolicyForm
+    target = Users.get_user_by_id(user_id)
+    if target is None:
+        raise HTTPException(status_code=404, detail='User not found')
+    try:
+        policy_form = UserPolicyForm(**form_data)
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f'Invalid policy data: {e}')
+    result = UserPolicies.insert_or_update_user_policy(user_id=user_id, form_data=policy_form)
+    if result is None:
+        raise HTTPException(status_code=500, detail='Failed to update user policy')
+    return result

@@ -1,14 +1,15 @@
-import requests
+import csv
+import io
+import json
 import logging
+import requests
 import ftfy
 import sys
-import json
 
 from azure.identity import DefaultAzureCredential
 from langchain_community.document_loaders import (
     AzureAIDocumentIntelligenceLoader,
     BSHTMLLoader,
-    CSVLoader,
     Docx2txtLoader,
     OutlookMessageLoader,
     PyPDFLoader,
@@ -226,6 +227,90 @@ class DoclingLoader:
             raise Exception(f'Error calling Docling: {error_msg}')
 
 
+class RobustCSVLoader:
+    """CSV loader that skips blank preamble rows and preserves full row content."""
+
+    def __init__(self, file_path):
+        self.file_path = file_path
+
+    def _read_text(self) -> str:
+        with open(self.file_path, 'rb') as file:
+            raw = file.read()
+
+        for encoding in ('utf-8-sig', 'utf-8', 'cp1252', 'latin-1'):
+            try:
+                return raw.decode(encoding)
+            except UnicodeDecodeError:
+                continue
+
+        return raw.decode('utf-8', errors='ignore')
+
+    @staticmethod
+    def _is_empty_row(row: list[str]) -> bool:
+        return not any((cell or '').strip() for cell in row)
+
+    @staticmethod
+    def _normalize_headers(row: list[str]) -> list[str]:
+        headers: list[str] = []
+        seen: dict[str, int] = {}
+
+        for index, cell in enumerate(row, start=1):
+            base = (cell or '').strip() or f'column_{index}'
+            count = seen.get(base, 0) + 1
+            seen[base] = count
+            headers.append(base if count == 1 else f'{base}_{count}')
+
+        return headers
+
+    def load(self) -> list[Document]:
+        text = self._read_text().replace('\x00', '')
+        sample = '\n'.join(line for line in text.splitlines() if line.strip())[:4096]
+
+        try:
+            dialect = csv.Sniffer().sniff(sample, delimiters=',;\t|')
+        except csv.Error:
+            dialect = csv.excel
+
+        reader = csv.reader(io.StringIO(text), dialect)
+        rows: list[tuple[int, list[str]]] = []
+
+        for csv_row_number, row in enumerate(reader):
+            normalized_row = [ftfy.fix_text(str(cell or '').strip()) for cell in row]
+            if self._is_empty_row(normalized_row):
+                continue
+            rows.append((csv_row_number, normalized_row))
+
+        if not rows:
+            return []
+
+        headers = self._normalize_headers(rows[0][1])
+        documents: list[Document] = []
+
+        for row_index, (csv_row_number, row_values) in enumerate(rows[1:]):
+            padded_values = row_values + [''] * max(0, len(headers) - len(row_values))
+            row_pairs = [
+                (header, value)
+                for header, value in zip(headers, padded_values[: len(headers)])
+                if value
+            ]
+
+            if not row_pairs:
+                continue
+
+            documents.append(
+                Document(
+                    page_content='\n'.join(f'{header}: {value}' for header, value in row_pairs),
+                    metadata={
+                        'source': self.file_path,
+                        'row': row_index,
+                        'csv_row_number': csv_row_number,
+                    },
+                )
+            )
+
+        return documents
+
+
 class Loader:
     def __init__(self, engine: str = '', **kwargs):
         self.engine = engine
@@ -394,7 +479,7 @@ class Loader:
                     mode=self.kwargs.get('PDF_LOADER_MODE', 'page'),
                 )
             elif file_ext == 'csv':
-                loader = CSVLoader(file_path, autodetect_encoding=True)
+                loader = RobustCSVLoader(file_path)
             elif file_ext == 'rst':
                 try:
                     from langchain_community.document_loaders import UnstructuredRSTLoader
