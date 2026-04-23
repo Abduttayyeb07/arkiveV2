@@ -62,8 +62,7 @@ htmlcov/
 !.env.example
 
 # ----- Pyodide -----
-static/pyodide/*
-!static/pyodide/pyodide-lock.json
+static/pyodide/
 
 # ----- Claude Code -----
 CLAUDE.md

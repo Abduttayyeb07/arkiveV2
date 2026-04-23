@@ -59,6 +59,15 @@ function initNetworkProxyFromEnv() {
 }
 
 async function downloadPackages() {
+	// Skip download if lock file already exists — packages are ready.
+	try {
+		await access('static/pyodide/pyodide-lock.json');
+		console.log('Pyodide already set up, skipping download.');
+		return;
+	} catch {
+		// lock file missing — proceed with download
+	}
+
 	console.log('Setting up pyodide + micropip');
 
 	let pyodide;
