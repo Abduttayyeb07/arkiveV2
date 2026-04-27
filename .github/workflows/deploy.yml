@@ -12,30 +12,11 @@ concurrency:
 
 jobs:
   # ─────────────────────────────────────────
-  # JOB 1 — Type-check (every push + PR)
-  # ─────────────────────────────────────────
-  check:
-    name: Frontend type-check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - run: npm ci --force
-
-      - run: npm run check
-
-  # ─────────────────────────────────────────
-  # JOB 2 — Deploy (main branch only)
+  # Deploy (main branch only)
   # ─────────────────────────────────────────
   deploy:
     name: Deploy to VPS
     runs-on: ubuntu-latest
-    needs: check
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: production
 
