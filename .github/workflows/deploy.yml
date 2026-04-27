@@ -1,0 +1,82 @@
+name: CI / Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ─────────────────────────────────────────
+  # JOB 1 — Type-check (every push + PR)
+  # ─────────────────────────────────────────
+  check:
+    name: Frontend type-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci --force
+
+      - run: npm run check
+
+  # ─────────────────────────────────────────
+  # JOB 2 — Deploy (main branch only)
+  # ─────────────────────────────────────────
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    needs: check
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+
+    steps:
+      - name: SSH → git pull → docker compose up
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          port: 22
+          script: |
+            set -euo pipefail
+            cd ${{ secrets.VPS_DEPLOY_PATH }}
+
+            echo "==> Pulling latest code"
+            git pull origin main
+
+            echo "==> Writing .env"
+            cat > .env << 'EOF'
+            ARKIVE_SECRET_KEY=${{ secrets.ARKIVE_SECRET_KEY }}
+            POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+            POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+            POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+            ARKIVE_PORT=${{ secrets.ARKIVE_PORT }}
+            POSTGRES_PORT=${{ secrets.POSTGRES_PORT }}
+            EOF
+
+            echo "==> Rebuilding containers"
+            docker compose up -d --build --remove-orphans
+
+            echo "==> Pruning old images"
+            docker image prune -f
+
+            docker compose ps
+
+      - name: Health check
+        run: |
+          echo "Waiting 30s for app to start..."
+          sleep 30
+          curl -sf --max-time 15 \
+            http://${{ secrets.VPS_HOST }}:${{ secrets.ARKIVE_PORT }}/health \
+            | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if d.get('status') else 1)"
+          echo "Health check passed"

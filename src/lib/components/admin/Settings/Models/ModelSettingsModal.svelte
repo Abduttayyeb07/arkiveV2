@@ -65,6 +65,17 @@
 	let builtinTools: Record<string, any> = {};
 	let promptSuggestions = [];
 
+	const sanitizeModelMetadata = () => {
+		const capabilities = { ...defaultCapabilities };
+		delete capabilities.image_generation;
+		defaultCapabilities = capabilities;
+		defaultFeatureIds = defaultFeatureIds.filter((id) => id !== 'image_generation');
+
+		const tools = { ...builtinTools };
+		delete tools.image_generation;
+		builtinTools = tools;
+	};
+
 	$: if (show) {
 		init();
 	}
@@ -109,12 +120,14 @@
 			defaultFeatureIds = [];
 			builtinTools = {};
 		}
+		sanitizeModelMetadata();
 		defaultParams = config?.DEFAULT_MODEL_PARAMS ?? {};
 
 		promptSuggestions = $_config?.default_prompt_suggestions ?? [];
 	};
 	const submitHandler = async () => {
 		loading = true;
+		sanitizeModelMetadata();
 
 		const metadata = {
 			capabilities: defaultCapabilities,
@@ -319,9 +332,7 @@
 															.filter(
 																([key, value]) =>
 																	value &&
-																	['web_search', 'code_interpreter', 'image_generation'].includes(
-																		key
-																	)
+																	['web_search', 'code_interpreter'].includes(key)
 															)
 															.map(([key, value]) => key)}
 

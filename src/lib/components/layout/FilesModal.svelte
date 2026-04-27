@@ -16,6 +16,7 @@
 	import ChevronDown from '$lib/components/icons/ChevronDown.svelte';
 	import ConfirmDialog from '$lib/components/common/ConfirmDialog.svelte';
 	import FileItemModal from '$lib/components/common/FileItemModal.svelte';
+	import Checkbox from '$lib/components/common/Checkbox.svelte';
 
 	const i18n: Writable<any> = getContext<Writable<i18nType>>('i18n');
 
@@ -33,6 +34,8 @@
 
 	let selectedFileId: string | null = null;
 	let showDeleteConfirmDialog = false;
+	let selectedFileIds: string[] = [];
+	let showBulkDeleteConfirmDialog = false;
 
 	let selectedFile: any = null;
 	let showFileItemModal = false;
@@ -125,10 +128,57 @@
 			toast.success($i18n.t('File deleted successfully.'));
 			// Remove from local array instead of re-fetching to allow rapid deletion
 			files = files?.filter((f) => f.id !== fileId) ?? null;
+			selectedFileIds = selectedFileIds.filter((id) => id !== fileId);
 		} catch (error) {
 			toast.error(`${error}`);
 		}
 	};
+
+	const bulkDeleteHandler = async () => {
+		const ids = [...selectedFileIds];
+		let deletedCount = 0;
+
+		for (const fileId of ids) {
+			try {
+				await deleteFileById(localStorage.token, fileId);
+				deletedCount += 1;
+			} catch (error) {
+				toast.error(`${error}`);
+			}
+		}
+
+		if (deletedCount > 0) {
+			files = files?.filter((file) => !ids.includes(file.id)) ?? null;
+			selectedFileIds = [];
+			toast.success(
+				$i18n.t('{{count}} files deleted successfully.', {
+					count: deletedCount
+				})
+			);
+		}
+	};
+
+	const toggleFileSelection = (fileId: string, selected: boolean) => {
+		if (selected) {
+			selectedFileIds = [...new Set([...selectedFileIds, fileId])];
+		} else {
+			selectedFileIds = selectedFileIds.filter((id) => id !== fileId);
+		}
+	};
+
+	const visibleFileIds = () => (files ?? []).map((file) => file.id);
+
+	const selectAllVisibleFiles = () => {
+		selectedFileIds = [...new Set([...selectedFileIds, ...visibleFileIds()])];
+	};
+
+	const clearVisibleFileSelection = () => {
+		const visibleIds = new Set(visibleFileIds());
+		selectedFileIds = selectedFileIds.filter((id) => !visibleIds.has(id));
+	};
+
+	$: visibleSelectedCount = (files ?? []).filter((file) => selectedFileIds.includes(file.id)).length;
+	$: allVisibleFilesSelected = (files?.length ?? 0) > 0 && visibleSelectedCount === files.length;
 
 	const openFileViewer = (file: any) => {
 		selectedFile = {
@@ -185,12 +235,20 @@
 
 <ConfirmDialog
 	bind:show={showDeleteConfirmDialog}
-	on:confirm={() => {
+	on:confirm={async () => {
 		if (selectedFileId) {
-			deleteHandler(selectedFileId);
+			await deleteHandler(selectedFileId);
 			selectedFileId = null;
 		}
 	}}
+/>
+
+<ConfirmDialog
+	bind:show={showBulkDeleteConfirmDialog}
+	title={$i18n.t('Delete Selected Files')}
+	message={$i18n.t('Are you sure you want to delete the selected files? This action cannot be undone.')}
+	confirmLabel={$i18n.t('Delete')}
+	on:confirm={bulkDeleteHandler}
 />
 
 <FileItemModal bind:show={showFileItemModal} item={selectedFile} edit={false} />
@@ -201,6 +259,8 @@
 			<div class="text-lg font-medium self-center">{$i18n.t('Files')}</div>
 			<button
 				class="self-center"
+				type="button"
+				aria-label={$i18n.t('Close')}
 				on:click={() => {
 					show = false;
 				}}
@@ -249,6 +309,8 @@
 						<div class="self-center pl-1.5 pr-1 translate-y-[0.5px] rounded-l-xl bg-transparent">
 							<button
 								class="p-0.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-900 transition"
+								type="button"
+								aria-label={$i18n.t('Clear search')}
 								on:click={() => {
 									query = '';
 								}}
@@ -258,6 +320,32 @@
 						</div>
 					{/if}
 				</div>
+
+				{#if selectedFileIds.length > 0}
+					<div class="flex items-center gap-2 text-xs">
+						<div class="text-gray-500 dark:text-gray-400 whitespace-nowrap">
+							{$i18n.t('{{count}} selected', { count: selectedFileIds.length })}
+						</div>
+						<button
+							class="px-2.5 py-1 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition"
+							type="button"
+							on:click={() => {
+								showBulkDeleteConfirmDialog = true;
+							}}
+						>
+							{$i18n.t('Delete Selected')}
+						</button>
+						<button
+							class="px-2 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-850 transition"
+							type="button"
+							on:click={() => {
+								selectedFileIds = [];
+							}}
+						>
+							{$i18n.t('Clear')}
+						</button>
+					</div>
+				{/if}
 			</div>
 
 			<!-- Files List -->
@@ -266,8 +354,21 @@
 					<div class="w-full">
 						{#if files.length > 0}
 							<div class="flex text-xs font-medium mb-1.5">
+								<div class="px-1.5 py-1 w-8 flex justify-center">
+									<Checkbox
+										state={allVisibleFilesSelected ? 'checked' : 'unchecked'}
+										on:change={(event) => {
+											if (event.detail === 'checked') {
+												selectAllVisibleFiles();
+											} else {
+												clearVisibleFileSelection();
+											}
+										}}
+									/>
+								</div>
 								<button
 									class="px-1.5 py-1 cursor-pointer select-none basis-3/5"
+									type="button"
 									on:click={() => setSortKey('filename')}
 								>
 									<div class="flex gap-1.5 items-center">
@@ -289,6 +390,7 @@
 								</button>
 								<button
 									class="px-1.5 py-1 cursor-pointer select-none hidden sm:flex sm:basis-2/5 justify-end"
+									type="button"
 									on:click={() => setSortKey('created_at')}
 								>
 									<div class="flex gap-1.5 items-center">
@@ -322,9 +424,35 @@
 
 							{#each files as file (file.id)}
 								<div
-									class="w-full flex justify-between items-center rounded-lg text-sm py-2 px-3 hover:bg-gray-50 dark:hover:bg-gray-850 cursor-pointer"
+									class="w-full flex justify-between items-center rounded-lg text-sm py-2 px-3 hover:bg-gray-50 dark:hover:bg-gray-850 cursor-pointer {selectedFileIds.includes(
+										file.id
+									)
+										? 'bg-gray-50 dark:bg-gray-850'
+										: ''}"
+									role="button"
+									tabindex="0"
 									on:click={() => openFileViewer(file)}
+									on:keydown={(event) => {
+										if (event.key === 'Enter' || event.key === ' ') {
+											event.preventDefault();
+											openFileViewer(file);
+										}
+									}}
 								>
+									<div
+										class="w-8 flex justify-center"
+										role="presentation"
+										on:click|preventDefault|stopPropagation
+										on:keydown|stopPropagation
+									>
+										<Checkbox
+											state={selectedFileIds.includes(file.id) ? 'checked' : 'unchecked'}
+											on:change={(event) => {
+												toggleFileSelection(file.id, event.detail === 'checked');
+											}}
+										/>
+									</div>
+
 									<div class="basis-3/5 min-w-0">
 										<div class="text-ellipsis line-clamp-1">{file.filename}</div>
 										<div class="text-xs text-gray-500">
@@ -343,7 +471,9 @@
 													class="self-center w-fit px-1 text-sm rounded-xl {shiftKey
 														? 'text-red-500'
 														: ''}"
-													on:click|stopPropagation={() => {
+													type="button"
+													aria-label={$i18n.t('Delete File')}
+													on:click|preventDefault|stopPropagation={() => {
 														if (shiftKey) {
 															deleteHandler(file.id);
 														} else {
@@ -352,7 +482,7 @@
 														}
 													}}
 												>
-													<GarbageBin class="size-4" strokeWidth="1.5" />
+													<GarbageBin className="size-4" strokeWidth="1.5" />
 												</button>
 											</Tooltip>
 										</div>

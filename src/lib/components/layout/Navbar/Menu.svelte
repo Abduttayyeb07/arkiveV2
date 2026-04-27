@@ -27,7 +27,6 @@
 
 	import Dropdown from '$lib/components/common/Dropdown.svelte';
 	import DropdownSub from '$lib/components/common/DropdownSub.svelte';
-	import Tags from '$lib/components/chat/Tags.svelte';
 	import Clipboard from '$lib/components/icons/Clipboard.svelte';
 	import AdjustmentsHorizontal from '$lib/components/icons/AdjustmentsHorizontal.svelte';
 	import Cube from '$lib/components/icons/Cube.svelte';
@@ -448,11 +447,6 @@
 					<div class="flex items-center">{$i18n.t('Archive')}</div>
 				</button>
 
-				<hr class="border-gray-50/30 dark:border-gray-800/30 my-1" />
-
-				<div class="flex p-1">
-					<Tags chatId={chat.id} />
-				</div>
 			{/if}
 		</div>
 	</div>

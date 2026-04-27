@@ -97,7 +97,7 @@
 	let filterIds = [];
 	let defaultFilterIds = [];
 
-	let capabilities = { ...DEFAULT_CAPABILITIES };
+	let capabilities: Record<string, any> = { ...DEFAULT_CAPABILITIES };
 	let defaultFeatureIds = [];
 	let builtinTools: Record<string, any> = {};
 
@@ -105,8 +105,20 @@
 	let accessGrants = [];
 	let tts = { voice: '' };
 
+	const sanitizeModelMetadata = () => {
+		const sanitizedCapabilities: Record<string, any> = { ...capabilities };
+		delete sanitizedCapabilities.image_generation;
+		capabilities = sanitizedCapabilities;
+		defaultFeatureIds = defaultFeatureIds.filter((id) => id !== 'image_generation');
+
+		const sanitizedBuiltinTools = { ...builtinTools };
+		delete sanitizedBuiltinTools.image_generation;
+		builtinTools = sanitizedBuiltinTools;
+	};
+
 	const submitHandler = async () => {
 		loading = true;
+		sanitizeModelMetadata();
 
 		info.id = id;
 		info.name = name;
@@ -249,6 +261,7 @@
 		capabilities = { ...DEFAULT_CAPABILITIES, ...(defaultMeta.capabilities ?? {}) };
 		defaultFeatureIds = defaultMeta.defaultFeatureIds ?? [];
 		builtinTools = defaultMeta.builtinTools ?? {};
+		sanitizeModelMetadata();
 
 		// Scroll to top 'workspace-container' element
 		const workspaceContainer = document.getElementById('workspace-container');
@@ -316,6 +329,7 @@
 			capabilities = { ...capabilities, ...(model?.meta?.capabilities ?? {}) };
 			defaultFeatureIds = model?.meta?.defaultFeatureIds ?? defaultFeatureIds;
 			builtinTools = model?.meta?.builtinTools ?? builtinTools;
+			sanitizeModelMetadata();
 			tts = { voice: model?.meta?.tts?.voice ?? '' };
 
 			accessGrants = model?.access_grants ?? [];
@@ -811,7 +825,7 @@
 						{@const availableFeatures = Object.entries(capabilities)
 							.filter(
 								([key, value]) =>
-									value && ['web_search', 'code_interpreter', 'image_generation'].includes(key)
+									value && ['web_search', 'code_interpreter'].includes(key)
 							)
 							.map(([key, value]) => key)}
 

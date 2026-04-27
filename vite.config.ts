@@ -23,6 +23,17 @@ export default defineConfig({
 	build: {
 		sourcemap: true
 	},
+	server: {
+		watch: {
+			ignored: [
+				'**/backend/data/**',
+				'**/backend/arkive/data/**',
+				'**/backend/arkive/static/**',
+				'**/.venv/**',
+				'**/__pycache__/**'
+			]
+		}
+	},
 	worker: {
 		format: 'es'
 	},
