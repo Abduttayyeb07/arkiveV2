@@ -1471,6 +1471,34 @@ def save_docs_to_vector_db(
     if len(docs) == 0:
         raise ValueError(ERROR_MESSAGES.EMPTY_CONTENT)
 
+    # ── CONTEXTUAL ENRICHMENT (Agentic RAG — Step 1) ──────────────────────
+    # Prepend a 1-2 sentence context summary to each chunk so retrieval
+    # finds the right chunk even when query terminology differs from chunk
+    # content. Runs in parallel (max 5 concurrent Ollama calls). Falls back
+    # silently if Ollama is unavailable. Toggled via ENABLE_CONTEXTUAL_ENRICHMENT.
+    _enrichment_enabled = (
+        os.environ.get("ENABLE_CONTEXTUAL_ENRICHMENT", "false").lower() == "true"
+    )
+    if _enrichment_enabled:
+        try:
+            from arkive.utils.contextual_enricher import enrich_chunks
+            import asyncio
+
+            _first_meta = docs[0].metadata if docs else {}
+            _doc_title = (
+                _first_meta.get('name')
+                or _first_meta.get('title')
+                or _first_meta.get('source')
+                or 'Unknown Document'
+            )
+
+            # save_docs_to_vector_db is sync — run async enrichment via asyncio.run()
+            docs = asyncio.run(enrich_chunks(docs=docs, document_title=_doc_title))
+            log.info(f"[enrichment] completed for '{_doc_title}' ({len(docs)} chunks)")
+        except Exception as _e:
+            log.exception(f"[enrichment] failed — continuing without enrichment: {_e}")
+    # ── END CONTEXTUAL ENRICHMENT ──────────────────────────────────────────
+
     # ── PII REDACTION (OPT-IN) ────────────────────────────────────────────
     # Only runs when apply_redaction=True. Used by the publish/share flow
     # to build the `{kb_id}-shared` collection. Private uploads (admin raw
