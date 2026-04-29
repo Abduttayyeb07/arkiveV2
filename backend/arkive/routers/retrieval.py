@@ -1419,6 +1419,52 @@ def save_docs_to_vector_db(
                 add_start_index=True,
             )
             docs = text_splitter.split_documents(docs)
+        elif request.app.state.config.TEXT_SPLITTER == 'semantic':
+            # Sentence-boundary chunking via spacy — never splits mid-sentence.
+            # Groups sentences greedily up to CHUNK_SIZE chars, then carries
+            # the last sentence into the next chunk as overlap.
+            log.info('Using semantic (sentence-boundary) text splitter')
+            import spacy
+            try:
+                nlp = spacy.load('en_core_web_sm')
+            except OSError:
+                log.warning('en_core_web_sm not found, falling back to sentencizer')
+                nlp = spacy.blank('en')
+                nlp.add_pipe('sentencizer')
+
+            chunk_size = request.app.state.config.CHUNK_SIZE
+            chunk_overlap = request.app.state.config.CHUNK_OVERLAP
+            chunked_docs = []
+
+            for doc in docs:
+                spacy_doc = nlp(doc.page_content)
+                sentences = [s.text.strip() for s in spacy_doc.sents if s.text.strip()]
+
+                chunks = []
+                current: list[str] = []
+                current_len = 0
+
+                for sentence in sentences:
+                    sentence_len = len(sentence)
+                    if current and current_len + sentence_len > chunk_size:
+                        chunks.append(' '.join(current))
+                        # carry last sentence as overlap context
+                        overlap = [current[-1]] if chunk_overlap > 0 and current else []
+                        current = overlap + [sentence]
+                        current_len = sum(len(s) for s in current)
+                    else:
+                        current.append(sentence)
+                        current_len += sentence_len
+
+                if current:
+                    chunks.append(' '.join(current))
+
+                for chunk_text in chunks:
+                    chunked_docs.append(
+                        Document(page_content=chunk_text, metadata={**doc.metadata})
+                    )
+
+            docs = chunked_docs
         else:
             raise ValueError(ERROR_MESSAGES.DEFAULT('Invalid text splitter'))
 
