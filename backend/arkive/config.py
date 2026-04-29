@@ -171,7 +171,11 @@ class PersistentConfig(Generic[T]):
         self.config_value = get_config_value(config_path)
 
         if self.config_value is not None and ENABLE_PERSISTENT_CONFIG:
-            if self.config_path.startswith('oauth.') and not ENABLE_OAUTH_PERSISTENT_CONFIG:
+            if os.environ.get(self.env_name) is not None:
+                # Explicitly set env var always wins over DB value
+                log.info(f"'{env_name}' overridden by environment variable")
+                self.value = env_value
+            elif self.config_path.startswith('oauth.') and not ENABLE_OAUTH_PERSISTENT_CONFIG:
                 log.info(f"Skipping loading of '{env_name}' as OAuth persistent config is disabled")
                 self.value = env_value
             else:
